@@ -312,7 +312,7 @@ function PUIUnitBase:CreateUnitFrame(parent, unit, width, height, customName)
         local priorityList = CLASS_DEBUFF_PRIORITY[playerClass] or { "Magic", "Curse", "Poison", "Disease" }
 
         local CoreAuras = Primus.Auras
-        local unitAuras = CoreAuras and CoreAuras:GetUnitAuras(u)
+        local unitAuras = CoreAuras and CoreAuras.GetUnitAuras and CoreAuras:GetUnitAuras(u)
         if unitAuras and unitAuras.totalDebuffs and unitAuras.totalDebuffs > 0 then
             local activeDebuffs = {}
             for d = 1, unitAuras.totalDebuffs do

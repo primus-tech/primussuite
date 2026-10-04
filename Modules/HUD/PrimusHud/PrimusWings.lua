@@ -372,7 +372,7 @@ function PUIHud:UpdateAuras()
     local slotIdx = 1
 
     -- 1. Temporary Weapon Enchants (Main Hand & Off Hand) via Central Auras Service
-    local enchants = CoreAuras and CoreAuras:GetWeaponEnchants()
+    local enchants = CoreAuras and CoreAuras.GetWeaponEnchants and CoreAuras:GetWeaponEnchants()
     if enchants and enchants.hasMainHand and slotIdx <= 4 then
         local btn = playerAuraButtons[slotIdx]
         if btn then
@@ -424,7 +424,7 @@ function PUIHud:UpdateAuras()
     end
 
     -- 2. Player Buffs & Debuffs from Primus.Auras
-    local pAuras = CoreAuras and CoreAuras:GetUnitAuras("player")
+    local pAuras = CoreAuras and CoreAuras.GetUnitAuras and CoreAuras:GetUnitAuras("player")
     if pAuras then
         if pAuras.totalBuffs and pAuras.totalBuffs > 0 then
             for i = 1, pAuras.totalBuffs do
@@ -484,7 +484,7 @@ function PUIHud:UpdateAuras()
                             btn.duration:Hide()
                         end
 
-                        local dc = CoreAuras and CoreAuras:GetDispelColor(debuff.dispelType) or { r = 0.8, g = 0.2, b = 0.2 }
+                        local dc = CoreAuras and CoreAuras.GetDispelColor and CoreAuras:GetDispelColor(debuff.dispelType) or { r = 0.8, g = 0.2, b = 0.2 }
                         btn:SetBackdropBorderColor(dc.r, dc.g, dc.b, 0.9)
                         btn:Show()
                         slotIdx = slotIdx + 1
@@ -510,7 +510,7 @@ function PUIHud:UpdateAuras()
     if targetAuraFrame then targetAuraFrame:Show() end
 
     local tSlot = 1
-    local tAuras = CoreAuras and CoreAuras:GetUnitAuras("target")
+    local tAuras = CoreAuras and CoreAuras.GetUnitAuras and CoreAuras:GetUnitAuras("target")
     if tAuras then
         if tAuras.totalBuffs and tAuras.totalBuffs > 0 then
             for i = 1, tAuras.totalBuffs do

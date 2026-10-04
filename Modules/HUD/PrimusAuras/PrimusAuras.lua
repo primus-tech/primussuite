@@ -139,7 +139,7 @@ function PUIAuras:UpdateAuras()
     local activeSlot = 0
 
     -- 1. Check Temporary Weapon Enchants via Central Primus.Auras Service
-    local enchants = CoreAuras and CoreAuras:GetWeaponEnchants()
+    local enchants = CoreAuras and CoreAuras.GetWeaponEnchants and CoreAuras:GetWeaponEnchants()
     if enchants and enchants.hasMainHand then
         activeSlot = activeSlot + 1
         local btn = auraButtons[activeSlot] or CreateAuraButton(activeSlot, containerFrame)
@@ -175,7 +175,7 @@ function PUIAuras:UpdateAuras()
     end
 
     -- 2. Query Cached Player Buffs & Debuffs from Primus.Auras
-    local playerAuras = CoreAuras and CoreAuras:GetUnitAuras("player")
+    local playerAuras = CoreAuras and CoreAuras.GetUnitAuras and CoreAuras:GetUnitAuras("player")
     if playerAuras then
         if playerAuras.totalBuffs and playerAuras.totalBuffs > 0 then
             for i = 1, playerAuras.totalBuffs do
