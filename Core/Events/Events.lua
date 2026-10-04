@@ -24,18 +24,20 @@ local hookedFunctions  = {} -- [targetTable_method] = originalFunc
 local eventFrame = CreateFrame("Frame", "Primus_EventFrame")
 
 local function Master_OnEvent()
-    local event = event
-    local listeners = eventListeners[event]
+    local currentEvent = _G.event or event
+    if not currentEvent then return end
+    local listeners = eventListeners[currentEvent]
     if not listeners then return end
 
     local count = table.getn(listeners)
+    local a1, a2, a3, a4, a5, a6, a7, a8, a9 = _G.arg1, _G.arg2, _G.arg3, _G.arg4, _G.arg5, _G.arg6, _G.arg7, _G.arg8, _G.arg9
     for i = 1, count do
         local entry = listeners[i]
         if entry and entry.callback then
-            if entry.owner then
-                Debug:SafeCall(entry.callback, entry.owner, event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+            if entry.owner and entry.owner ~= "ANONYMOUS" then
+                Debug:SafeCall(entry.callback, entry.owner, currentEvent, a1, a2, a3, a4, a5, a6, a7, a8, a9)
             else
-                Debug:SafeCall(entry.callback, event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
+                Debug:SafeCall(entry.callback, currentEvent, a1, a2, a3, a4, a5, a6, a7, a8, a9)
             end
         end
     end
@@ -43,9 +45,14 @@ end
 
 eventFrame:SetScript("OnEvent", Master_OnEvent)
 
--- Register for a native WoW Event
+-- Register for a native WoW Event (supports (event, owner, callback) and (event, callback))
 function Events:Register(event, owner, callback)
-    if not event or not callback then return end
+    if not event then return end
+    if type(owner) == "function" and callback == nil then
+        callback = owner
+        owner = "ANONYMOUS"
+    end
+    if not callback or type(callback) ~= "function" then return end
     event = string.upper(event)
 
     if not eventListeners[event] then

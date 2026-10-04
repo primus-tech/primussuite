@@ -75,7 +75,8 @@ function Primus:RegisterAddon(addonName, addonTable)
     Primus[addonName] = addonTable
 
     -- If the engine is already booted, run immediate initialization
-    if globalRegistry.state == "READY" and addonTable.OnInitialize then
+    if globalRegistry.state == "READY" and addonTable.OnInitialize and not addonTable.__initialized then
+        addonTable.__initialized = true
         if self.Debug and self.Debug.SafeCall then
             self.Debug:SafeCall(addonTable.OnInitialize, addonTable)
         else
@@ -125,7 +126,8 @@ function Primus:RegisterModule(moduleName, moduleTable, category)
         end
     end
 
-    if globalRegistry.state == "READY" and moduleTable.OnInitialize then
+    if globalRegistry.state == "READY" and moduleTable.OnInitialize and not moduleTable.__initialized then
+        moduleTable.__initialized = true
         if self.Debug and self.Debug.SafeCall then
             self.Debug:SafeCall(moduleTable.OnInitialize, moduleTable)
         else

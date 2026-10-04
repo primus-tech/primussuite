@@ -23,38 +23,61 @@ local function InitializeAll()
     -- Register "Modules" namespace for enable/disable persistence
     local moduleDB = Primus.DB and Primus.DB:RegisterNamespace("Modules", {})
 
-    -- Phase 1: Initialize all registered Addons
+    -- Phase 1: Initialize all registered Addons (deduplicated)
+    local visitedAddons = {}
     for addonName, addon in pairs(registry.addons) do
-        if addon.OnInitialize and type(addon.OnInitialize) == "function" then
-            Debug:SafeCall(addon.OnInitialize, addon)
+        if addon and not visitedAddons[addon] then
+            visitedAddons[addon] = true
+            if addon.OnInitialize and type(addon.OnInitialize) == "function" and not addon.__initialized then
+                addon.__initialized = true
+                if Debug and Debug.SafeCall then
+                    Debug:SafeCall(addon.OnInitialize, addon)
+                else
+                    addon:OnInitialize()
+                end
+            end
         end
     end
 
-    -- Phase 2: Initialize all registered Modules
+    -- Phase 2: Initialize all registered Modules (deduplicated across alias pointers)
+    local visitedModules = {}
     for moduleName, moduleObj in pairs(registry.modules) do
-        if moduleObj.OnInitialize and type(moduleObj.OnInitialize) == "function" then
-            Debug:SafeCall(moduleObj.OnInitialize, moduleObj)
+        if moduleObj and not visitedModules[moduleObj] then
+            visitedModules[moduleObj] = true
+            if moduleObj.OnInitialize and type(moduleObj.OnInitialize) == "function" and not moduleObj.__initialized then
+                moduleObj.__initialized = true
+                if Debug and Debug.SafeCall then
+                    Debug:SafeCall(moduleObj.OnInitialize, moduleObj)
+                else
+                    moduleObj:OnInitialize()
+                end
+            end
         end
     end
 
     -- Phase 3: Enable all Addons and active Modules
-    for addonName, addon in pairs(registry.addons) do
-        if addon.OnEnable and type(addon.OnEnable) == "function" then
-            Debug:SafeCall(addon.OnEnable, addon)
+    for addon, _ in pairs(visitedAddons) do
+        if addon.OnEnable and type(addon.OnEnable) == "function" and not addon.enabled then
+            if Debug and Debug.SafeCall then
+                Debug:SafeCall(addon.OnEnable, addon)
+            else
+                addon:OnEnable()
+            end
             addon.enabled = true
         end
     end
 
-    for moduleName, moduleObj in pairs(registry.modules) do
+    for moduleObj, _ in pairs(visitedModules) do
+        local canonicalName = moduleObj.name or "Unknown"
         local isEnabled = true
-        if moduleDB and moduleDB:Get(moduleName) ~= nil then
-            isEnabled = moduleDB:Get(moduleName)
+        if moduleDB and moduleDB:Get(canonicalName) ~= nil then
+            isEnabled = moduleDB:Get(canonicalName)
         elseif moduleObj.defaultDisabled then
             isEnabled = false
         end
 
         if isEnabled then
-            Primus:EnableModule(moduleName)
+            Primus:EnableModule(canonicalName)
         else
             moduleObj.enabled = false
         end
@@ -65,7 +88,17 @@ local function InitializeAll()
     DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PrimusSuite]: Suite v%s (build %d) Initialized.", major, minor), "69ccf0"))
 end
 
--- Hook login events for staged startup
+-- Staged login hooks with multiple fallback events
 Events:Register("PLAYER_LOGIN", Primus, function()
     InitializeAll()
+end)
+
+Events:Register("PLAYER_ENTERING_WORLD", Primus, function()
+    InitializeAll()
+end)
+
+Events:Register("VARIABLES_LOADED", Primus, function()
+    if Primus.DB and Primus.DB.SyncNamespaces then
+        Primus.DB:SyncNamespaces()
+    end
 end)
