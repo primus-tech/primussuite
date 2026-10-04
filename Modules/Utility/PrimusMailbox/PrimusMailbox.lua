@@ -144,7 +144,7 @@ function PUIMailbox:RegisterOptionsFlare()
         name = "PUIMailbox",
         category = "Utility",
         label = "Mailbox Suite",
-        icon = "Interface\Icons\INV_Letter_15",
+        icon = "Interface\\Icons\\INV_Letter_15",
         desc = "One-click Open All mass mail collector, gold tally, and recipient auto-fill.",
     })
 end

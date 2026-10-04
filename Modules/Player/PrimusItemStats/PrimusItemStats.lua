@@ -133,7 +133,7 @@ function PUIItemStats:RegisterOptionsFlare()
         name = "PUIItemStats",
         category = "Player",
         label = "Item Stats & Budget",
-        icon = "Interface\Icons\INV_Misc_QuestionMark",
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
         desc = "Calculates stat budget, effective health, and bonus spell power ratings.",
     })
 end

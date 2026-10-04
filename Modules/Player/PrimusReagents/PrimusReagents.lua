@@ -51,7 +51,7 @@ function PUIReagents:RegisterOptionsFlare()
         name = "PUIReagents",
         category = "Player",
         label = "Reagent Counter",
-        icon = "Interface\Icons\INV_Misc_Gem_01",
+        icon = "Interface\\Icons\\INV_Misc_Gem_01",
         desc = "Tracks class reagents, poisons, soul shards, and ammunition stocks.",
     })
 end

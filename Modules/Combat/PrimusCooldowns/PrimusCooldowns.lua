@@ -62,7 +62,7 @@ function PUICooldowns:RegisterOptionsFlare()
         name = "PUICooldowns",
         category = "Combat",
         label = "Cooldown Tracker",
-        icon = "Interface\Icons\Spell_Nature_TimeStop",
+        icon = "Interface\\Icons\\Spell_Nature_TimeStop",
         desc = "Tracks spell, item, and pet cooldown timers with pulse alerts.",
     })
 end

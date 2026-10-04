@@ -86,7 +86,7 @@ function PUIHealComm:RegisterOptionsFlare()
         name = "PUIHealComm",
         category = "Combat",
         label = "Heal Communication",
-        icon = "Interface\Icons\Spell_Holy_Heal",
+        icon = "Interface\\Icons\\Spell_Holy_Heal",
         desc = "Predictive incoming heal estimation and cross-client heal broadcasting.",
     })
 end

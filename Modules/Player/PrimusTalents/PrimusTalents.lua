@@ -417,7 +417,7 @@ function PUITalents:RegisterOptionsFlare()
         name = "PUITalents",
         category = "Player",
         label = "Talents Suite",
-        icon = "Interface\Icons\Ability_Marksmanship",
+        icon = "Interface\\Icons\\Ability_Marksmanship",
         desc = "Modern talent tree inspector, template saver, and build previewer.",
     })
 end

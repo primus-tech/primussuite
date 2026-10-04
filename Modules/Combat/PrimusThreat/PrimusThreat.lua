@@ -119,7 +119,7 @@ function PUIThreat:RegisterOptionsFlare()
         name = "PUIThreat",
         category = "Combat",
         label = "Threat & Aggro",
-        icon = "Interface\Icons\Spell_Fire_FireArmor",
+        icon = "Interface\\Icons\\Spell_Fire_FireArmor",
         desc = "Multi-target threat tracking, aggro warnings, and threat meter telemetry.",
     })
 end

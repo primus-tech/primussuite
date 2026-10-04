@@ -43,7 +43,7 @@ function PUIRange:RegisterOptionsFlare()
         name = "PUIRange",
         category = "Combat",
         label = "Range & Distance",
-        icon = "Interface\Icons\Ability_Hunter_EagleEye",
+        icon = "Interface\\Icons\\Ability_Hunter_EagleEye",
         desc = "Calculates precise spell and attack range indicators based on unit tooltips.",
     })
 end

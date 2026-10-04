@@ -160,7 +160,7 @@ function PUIInspect:RegisterOptionsFlare()
         name = "PUIInspect",
         category = "Utility",
         label = "Inspect Engine",
-        icon = "Interface\Icons\INV_Misc_Spyglass_03",
+        icon = "Interface\\Icons\\INV_Misc_Spyglass_03",
         desc = "Throttled background inspect queue and persistent gear cache.",
     })
 end

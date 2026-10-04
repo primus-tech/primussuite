@@ -91,7 +91,7 @@ function PUICharacterSheet:RegisterOptionsFlare()
         name = "PUICharacterSheet",
         category = "Player",
         label = "Character Sheet",
-        icon = "Interface\Icons\INV_Chest_Cloth_17",
+        icon = "Interface\\Icons\\INV_Chest_Cloth_17",
         desc = "Enhanced character panel with item level calculation and stats breakdown.",
     })
 end

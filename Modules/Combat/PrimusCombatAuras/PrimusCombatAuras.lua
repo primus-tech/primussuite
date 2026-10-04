@@ -83,7 +83,7 @@ function PUICombatAuras:RegisterOptionsFlare()
         name = "PUICombatAuras",
         category = "Combat",
         label = "Combat Auras Engine",
-        icon = "Interface\Icons\Spell_Holy_WordFortitude",
+        icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
         desc = "Extracts spell names, stack counts, and debuff types (Magic, Curse, Poison, Disease).",
     })
 end
