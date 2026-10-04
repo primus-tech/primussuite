@@ -23,9 +23,13 @@ local Events  = Primus.Events
 function PUITalk:SuppressBlizzardChat()
     if DEFAULT_CHAT_FRAME and not DEFAULT_CHAT_FRAME.primusPUITalkHooked then
         local origAddMessage = DEFAULT_CHAT_FRAME.AddMessage
+        DEFAULT_CHAT_FRAME.origAddMessage = origAddMessage
         DEFAULT_CHAT_FRAME.AddMessage = function(self, text, r, g, b, id)
             if text then
                 PUITalk:AddChatMessage(tostring(text), r, g, b)
+            end
+            if (not PUITalk.masterFrame or not PUITalk.masterFrame:IsShown()) and origAddMessage then
+                origAddMessage(self, text, r, g, b, id)
             end
         end
         DEFAULT_CHAT_FRAME.primusPUITalkHooked = true
@@ -172,6 +176,40 @@ function PUITalk:SuppressBlizzardChat()
     if ChatFrameMenuButton then
         ChatFrameMenuButton:Hide()
         ChatFrameMenuButton.Show = function() end
+    end
+end
+
+function PUITalk:RestoreBlizzardChat()
+    for i = 1, 7 do
+        local cf = _G["ChatFrame" .. i]
+        if cf then
+            cf:ClearAllPoints()
+            if i == 1 then
+                cf:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 32, 104)
+                cf:SetWidth(430)
+                cf:SetHeight(160)
+            end
+            cf:SetAlpha(1)
+            cf:EnableMouse(true)
+            cf:Show()
+        end
+
+        local tab = _G["ChatFrame" .. i .. "Tab"]
+        if tab then
+            tab:ClearAllPoints()
+            if i == 1 then
+                tab:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 32, 264)
+            end
+            tab:SetAlpha(1)
+            tab:EnableMouse(true)
+            tab:Show()
+        end
+    end
+
+    if ChatFrameEditBox then
+        ChatFrameEditBox:ClearAllPoints()
+        ChatFrameEditBox:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 32, 76)
+        ChatFrameEditBox:SetWidth(430)
     end
 end
 

@@ -3,8 +3,8 @@
 ## Notes: Modular, High-Performance Master UI Suite for Vanilla WoW 1.12.1
 ## Author: Primus
 ## Version: 1.0.0
-## SavedVariables: PrimusGlobalDB
-## SavedVariablesPerCharacter: PrimusCharDB
+## SavedVariables: PrimusGlobalDB, PUIGlobalDB, PrimusUIDB, PUIDB
+## SavedVariablesPerCharacter: PrimusCharDB, PUICharDB, PrimusUICharDB
 
 # =========================================================================
 # CORE FOUNDATION & PLATFORM (PrimusCore)

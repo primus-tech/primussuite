@@ -60,6 +60,16 @@ function PUITalk:CreateChatView(viewport, master)
     end)
     viewChat.msgFrame = chatMsgFrame
     master.viewChat = viewChat
+
+    -- Replay pre-loaded / buffered chat messages so nothing is missed during boot
+    if self.chatBuffers and self.chatBuffers[1] then
+        for _, entry in ipairs(self.chatBuffers[1]) do
+            if entry and entry.text then
+                chatMsgFrame:AddMessage(entry.text, 1.0, 1.0, 1.0)
+            end
+        end
+    end
+
     return viewChat
 end
 

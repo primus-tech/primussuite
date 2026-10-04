@@ -18,17 +18,23 @@ local Debug  = Primus.Debug
 -- Registered Namespaces
 local registeredNamespaces = {}
 
--- Ensure root SavedVariable tables exist in global scope
+-- Ensure root SavedVariable tables exist in global scope, migrating legacy storage if present
 local function InitializeRootStorage()
+    -- Global Account DB
     if not _G.PrimusGlobalDB or type(_G.PrimusGlobalDB) ~= "table" then
-        _G.PrimusGlobalDB = {
-            version = 1,
-            namespaces = {},
-            profiles = {
-                ["Default"] = {},
-            },
-            currentProfile = "Default",
-        }
+        local legacy = _G.PUIGlobalDB or _G.PrimusUIDB or _G.PUIDB
+        if legacy and type(legacy) == "table" and legacy.namespaces then
+            _G.PrimusGlobalDB = Utils.DeepCopy(legacy)
+        else
+            _G.PrimusGlobalDB = {
+                version = 1,
+                namespaces = {},
+                profiles = {
+                    ["Default"] = {},
+                },
+                currentProfile = "Default",
+            }
+        end
     end
     if not _G.PrimusGlobalDB.namespaces or type(_G.PrimusGlobalDB.namespaces) ~= "table" then
         _G.PrimusGlobalDB.namespaces = {}
@@ -40,11 +46,17 @@ local function InitializeRootStorage()
         _G.PrimusGlobalDB.currentProfile = "Default"
     end
 
+    -- Character-Specific DB
     if not _G.PrimusCharDB or type(_G.PrimusCharDB) ~= "table" then
-        _G.PrimusCharDB = {
-            version = 1,
-            namespaces = {},
-        }
+        local legacyChar = _G.PUICharDB or _G.PrimusUICharDB or _G.PUIChar
+        if legacyChar and type(legacyChar) == "table" and legacyChar.namespaces then
+            _G.PrimusCharDB = Utils.DeepCopy(legacyChar)
+        else
+            _G.PrimusCharDB = {
+                version = 1,
+                namespaces = {},
+            }
+        end
     end
     if not _G.PrimusCharDB.namespaces or type(_G.PrimusCharDB.namespaces) ~= "table" then
         _G.PrimusCharDB.namespaces = {}
@@ -72,13 +84,20 @@ function DB:RegisterNamespace(name, defaults, isCharSpecific)
 
     local root = isCharSpecific and _G.PrimusCharDB.namespaces or _G.PrimusGlobalDB.namespaces
     if not root[name] then
-        if string.sub(name, 1, 3) == "PUI" then
-            local legacyName = string.sub(name, 4)
-            if root[legacyName] and type(root[legacyName]) == "table" then
-                root[name] = Utils.DeepCopy(root[legacyName])
-            else
-                root[name] = {}
-            end
+        -- Check aliases across PUI, Primus, and bare names
+        local candidate = nil
+        if string.find(name, "^Primus") then
+            local short = string.sub(name, 7)
+            candidate = root[short] or root["PUI" .. short]
+        elseif string.find(name, "^PUI") then
+            local short = string.sub(name, 4)
+            candidate = root[short] or root["Primus" .. short]
+        else
+            candidate = root["Primus" .. name] or root["PUI" .. name]
+        end
+
+        if candidate and type(candidate) == "table" then
+            root[name] = Utils.DeepCopy(candidate)
         else
             root[name] = {}
         end

@@ -29,9 +29,17 @@ local masterFrame = nil
 function PUITalk:CreateMasterFrame()
     if masterFrame then return masterFrame end
 
+    local w = tonumber(self.db and self.db:Get("width"))
+    if not w or w < 250 then w = 450 end
+    local h = tonumber(self.db and self.db:Get("height"))
+    if not h or h < 140 then h = 230 end
+
     local f = CreateFrame("Frame", "Primus_PUITalkFrame", UIParent)
-    f:SetWidth(self.db:Get("width") or 450)
-    f:SetHeight(self.db:Get("height") or 230)
+    f:SetWidth(w)
+    f:SetHeight(h)
+    f:SetFrameStrata("LOW")
+    f:SetFrameLevel(10)
+    f:SetClampedToScreen(true)
     f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 24, 36)
     f:SetBackdrop(Media:Fetch("border", "1Pixel"))
     f:SetBackdropColor(0.06, 0.07, 0.09, 0.95)

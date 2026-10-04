@@ -22,11 +22,15 @@ local Time    = Primus.Time
 -- =========================================================================
 
 function PUITalk:OnInitialize()
+    self:CreateMasterFrame()
+    if self.masterFrame then
+        self.masterFrame:Show()
+        self:SelectMasterTab(1)
+    end
     self:SuppressBlizzardChat()
     self:RegisterChatEvents()
     self:UpdateClassCache()
     self:RegisterOptionsFlare()
-    self:CreateMasterFrame()
     self:HookChatKeybind()
 
     -- Console Subcommand Registrations

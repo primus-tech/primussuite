@@ -342,16 +342,18 @@ function PUIMerchant:OnEnable()
 
     -- Hook AH Frame Show to apply skin, dock flyout, and hook rows
     Events:Register("AUCTION_HOUSE_SHOW", "PUIMerchant", function()
-        if not _G.AuctionFrame and type(_G.AuctionFrame_LoadUI) == "function" then
-            _G.AuctionFrame_LoadUI()
-        end
-        if _G.AuctionFrame then
-            PUIMerchant:SkinAuctionHouse()
-            PUIMerchant:CreateFlyoutDrawer()
-            HookBrowseRows()
-            HookAuctionsTab()
-            PUIMerchant:UpdateBrowsePrices()
-        end
+        pcall(function()
+            if not _G.AuctionFrame and type(_G.AuctionFrame_LoadUI) == "function" then
+                _G.AuctionFrame_LoadUI()
+            end
+            if _G.AuctionFrame then
+                PUIMerchant:SkinAuctionHouse()
+                PUIMerchant:CreateFlyoutDrawer()
+                HookBrowseRows()
+                HookAuctionsTab()
+                PUIMerchant:UpdateBrowsePrices()
+            end
+        end)
     end)
 
     Events:Register("AUCTION_ITEM_LIST_UPDATE", "PUIMerchant", function()

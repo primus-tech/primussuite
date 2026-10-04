@@ -70,9 +70,18 @@ local function InitializeAll()
     for moduleObj, _ in pairs(visitedModules) do
         local canonicalName = moduleObj.name or "Unknown"
         local isEnabled = true
-        if moduleDB and moduleDB:Get(canonicalName) ~= nil then
-            isEnabled = moduleDB:Get(canonicalName)
-        elseif moduleObj.defaultDisabled then
+        if moduleDB then
+            local val = moduleDB:Get(canonicalName)
+            if val == nil and string.find(canonicalName, "^Primus") then
+                val = moduleDB:Get(string.sub(canonicalName, 7)) or moduleDB:Get("PUI" .. string.sub(canonicalName, 7))
+            elseif val == nil and string.find(canonicalName, "^PUI") then
+                val = moduleDB:Get(string.sub(canonicalName, 4)) or moduleDB:Get("Primus" .. string.sub(canonicalName, 4))
+            end
+            if val ~= nil then
+                isEnabled = val
+            end
+        end
+        if moduleObj.defaultDisabled and (not moduleDB or moduleDB:Get(canonicalName) == nil) then
             isEnabled = false
         end
 
