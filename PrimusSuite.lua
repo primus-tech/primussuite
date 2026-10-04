@@ -94,7 +94,9 @@ local function InitializeAll()
 
     registry.state = "READY"
     local major, minor = Primus:GetVersion()
-    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PrimusSuite]: Suite v%s (build %d) Initialized.", major, minor), "69ccf0"))
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage and Utils and Utils.ColorText then
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PrimusSuite]: Suite v%s (build %d) Initialized.", major, minor), "69ccf0"))
+    end
 end
 
 -- Staged login hooks with multiple fallback events

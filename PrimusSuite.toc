@@ -9,7 +9,40 @@
 # =========================================================================
 # CORE FOUNDATION & PLATFORM (PrimusCore)
 # =========================================================================
-Core\PrimusCore.xml
+Core\Bootstrap\Bootstrap.lua
+Core\Utils\Utils.lua
+Core\Utils\Items.lua
+Core\Memory\Memory.lua
+Core\Debug\Debug.lua
+Core\Time\Time.lua
+Core\Events\Events.lua
+Core\DB\DB.lua
+Core\DB\VanillaItemPrices.lua
+Core\DB\BasePriceDB.lua
+Core\Media\Media.lua
+Core\Media\Audio.lua
+Core\Skinner\Skinner.lua
+Core\Anim\Anim.lua
+Core\Widgets\Widgets.lua
+Core\Widgets\ContextMenu.lua
+Core\Keybind\Keybind.lua
+Core\Console\Console.lua
+Core\Comm\ChatThrottleLib.lua
+Core\Comm\Comm.lua
+Core\Auras\Auras.lua
+Core\Chat\Chat.lua
+Core\State\State.lua
+Core\Hider\Hider.lua
+Core\Mover\Mover.lua
+Core\Map\Map.lua
+Core\Tooltip\TooltipConstants.lua
+Core\Tooltip\TooltipSkin.lua
+Core\Tooltip\TooltipAnchor.lua
+Core\Tooltip\TooltipUnit.lua
+Core\Tooltip\TooltipItem.lua
+Core\Tooltip\TooltipScanner.lua
+Core\Tooltip\Tooltip.lua
+Core\Config\Options.lua
 
 # =========================================================================
 # UTILITY & META-UI MODULES (Tier 2 & 3)

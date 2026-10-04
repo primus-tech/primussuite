@@ -26,8 +26,8 @@ end
 local globalRegistry = _G.PrimusGlobal
 
 -- Controller Election: Check if incoming file is newer than active controller
-if _G.Primus and globalRegistry.activeMinor and globalRegistry.activeMinor >= MINOR then
-    -- Existing active controller is already up-to-date or newer. Skip initialization.
+if _G.Primus and globalRegistry.activeMinor and globalRegistry.activeMinor > MINOR then
+    -- Existing active controller is strictly newer. Skip initialization.
     return
 end
 

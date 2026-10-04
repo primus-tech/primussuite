@@ -33,13 +33,53 @@ def embed_primus_core(target_dir):
     copy_tree(os.path.join(REPO_ROOT, "Core"), os.path.join(libs_dir, "Core"))
     copy_tree(os.path.join(REPO_ROOT, "Media"), os.path.join(libs_dir, "Media"))
 
+CORE_LUA_FILES = [
+    "Core\\Bootstrap\\Bootstrap.lua",
+    "Core\\Utils\\Utils.lua",
+    "Core\\Utils\\Items.lua",
+    "Core\\Memory\\Memory.lua",
+    "Core\\Debug\\Debug.lua",
+    "Core\\Time\\Time.lua",
+    "Core\\Events\\Events.lua",
+    "Core\\DB\\DB.lua",
+    "Core\\DB\\VanillaItemPrices.lua",
+    "Core\\DB\\BasePriceDB.lua",
+    "Core\\Media\\Media.lua",
+    "Core\\Media\\Audio.lua",
+    "Core\\Skinner\\Skinner.lua",
+    "Core\\Anim\\Anim.lua",
+    "Core\\Widgets\\Widgets.lua",
+    "Core\\Widgets\\ContextMenu.lua",
+    "Core\\Keybind\\Keybind.lua",
+    "Core\\Console\\Console.lua",
+    "Core\\Comm\\ChatThrottleLib.lua",
+    "Core\\Comm\\Comm.lua",
+    "Core\\Auras\\Auras.lua",
+    "Core\\Chat\\Chat.lua",
+    "Core\\State\\State.lua",
+    "Core\\Hider\\Hider.lua",
+    "Core\\Mover\\Mover.lua",
+    "Core\\Map\\Map.lua",
+    "Core\\Tooltip\\TooltipConstants.lua",
+    "Core\\Tooltip\\TooltipSkin.lua",
+    "Core\\Tooltip\\TooltipAnchor.lua",
+    "Core\\Tooltip\\TooltipUnit.lua",
+    "Core\\Tooltip\\TooltipItem.lua",
+    "Core\\Tooltip\\TooltipScanner.lua",
+    "Core\\Tooltip\\Tooltip.lua",
+    "Core\\Config\\Options.lua",
+]
+
+CORE_TOC_SECTION = "\n".join(CORE_LUA_FILES)
+EMBEDDED_CORE_TOC_SECTION = "\n".join(["Libs\\PrimusCore\\" + f for f in CORE_LUA_FILES])
+
 def build_primus_core(target_dir):
     print("Building PrimusCore (Shared Engine)...")
     ensure_dir(target_dir)
     copy_tree(os.path.join(REPO_ROOT, "Core"), os.path.join(target_dir, "Core"))
     copy_tree(os.path.join(REPO_ROOT, "Media"), os.path.join(target_dir, "Media"))
     
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusCore
 ## Notes: Shared Foundation, Media, Skinner, Mover, and Tooltip Platform for Primus Addons
 ## Author: Primus
@@ -47,7 +87,7 @@ def build_primus_core(target_dir):
 ## SavedVariables: PrimusGlobalDB
 ## SavedVariablesPerCharacter: PrimusCharDB
 
-Core\\PrimusCore.xml
+{CORE_TOC_SECTION}
 """
     with open(os.path.join(target_dir, "PrimusCore.toc"), "w") as f:
         f.write(toc_content)
@@ -69,7 +109,7 @@ def build_standalone_merchant(target_dir):
     for fn in files:
         shutil.copy2(os.path.join(src_mod, fn), os.path.join(target_dir, fn))
         
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusMerchant
 ## Notes: Economy, Auction House 10s Scanner, Valuation & Offline Market Explorer
 ## Author: Primus
@@ -77,7 +117,7 @@ def build_standalone_merchant(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusMerchantDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusMerchantData.lua
 PrimusMerchantScan.lua
 PrimusMerchantGraph.lua
@@ -117,7 +157,7 @@ def build_standalone_roleplay(target_dir):
         "## OptionalDeps: PrimusCore",
         "## SavedVariables: PrimusRoleplayDB",
         "",
-        "Libs\\PrimusCore\\Core\\PrimusCore.xml",
+        EMBEDDED_CORE_TOC_SECTION,
     ]
     for fn in files:
         toc_lines.append(fn)
@@ -149,7 +189,7 @@ def build_standalone_quest(target_dir):
     for fn in files:
         shutil.copy2(os.path.join(src_mod, fn), os.path.join(target_dir, fn))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusQuest
 ## Notes: Complete Quest Database, Map Pin Resolution, Quest Tracker & Browser
 ## Author: Primus
@@ -157,7 +197,7 @@ def build_standalone_quest(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusQuestDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 DB\\init.lua
 DB\\items.lua
 DB\\units.lua
@@ -213,7 +253,7 @@ def build_standalone_bags(target_dir):
     for fn in files:
         shutil.copy2(os.path.join(src_mod, fn), os.path.join(target_dir, fn))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusBags
 ## Notes: Unified Continuous Grid, Container & Categorized Inventory with Auto-Sort
 ## Author: Primus
@@ -221,7 +261,7 @@ def build_standalone_bags(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusBagsDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusCategories.lua
 PrimusSort.lua
 PrimusBags.lua
@@ -251,7 +291,7 @@ def build_standalone_talk(target_dir):
     for fn in files:
         shutil.copy2(os.path.join(src_mod, fn), os.path.join(target_dir, fn))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusTalk
 ## Notes: Modern Chat Overhaul, Whisper Tabs, Message Logging & Social Suite
 ## Author: Primus
@@ -259,7 +299,7 @@ def build_standalone_talk(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusTalkDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusTalkCore.lua
 PrimusTalkChat.lua
 PrimusTalkChatEvents.lua
@@ -312,7 +352,7 @@ def build_standalone_combat(target_dir):
         if os.path.exists(p):
             shutil.copy2(p, os.path.join(target_dir, fn))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusCombat
 ## Notes: Tactical Combat HUD, CastBar, Cooldown Pulse, Threat Meter & HealComm
 ## Author: Primus
@@ -320,7 +360,7 @@ def build_standalone_combat(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusCombatDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusCombatLog.lua
 PrimusCombatAuras.lua
 PrimusThreat.lua
@@ -350,7 +390,7 @@ def build_standalone_hotbars(target_dir):
     for fn in files:
         shutil.copy2(os.path.join(src_mod, fn), os.path.join(target_dir, fn))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusHotbars
 ## Notes: Clean Modular Action Bars, Micro Bag Bar, XP Tracker & Stance Handling
 ## Author: Primus
@@ -358,7 +398,7 @@ def build_standalone_hotbars(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusHotbarsDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusButtons.lua
 PrimusXPBar.lua
 PrimusMicroBags.lua
@@ -376,7 +416,7 @@ def build_standalone_unitframes(target_dir):
     shutil.copy2(os.path.join(src_units, "PrimusUnitBase", "PrimusUnitBase.lua"), os.path.join(target_dir, "PrimusUnitBase.lua"))
     shutil.copy2(os.path.join(src_units, "PrimusUnitFrames", "PrimusUnitFrames.lua"), os.path.join(target_dir, "PrimusUnitFrames.lua"))
 
-    toc_content = """## Interface: 11200
+    toc_content = f"""## Interface: 11200
 ## Title: PrimusUnitFrames
 ## Notes: Ultra-Responsive Player, Target, Target of Target, Pet & Party Frames
 ## Author: Primus
@@ -384,7 +424,7 @@ def build_standalone_unitframes(target_dir):
 ## OptionalDeps: PrimusCore
 ## SavedVariables: PrimusUnitFramesDB
 
-Libs\\PrimusCore\\Core\\PrimusCore.xml
+{EMBEDDED_CORE_TOC_SECTION}
 PrimusUnitBase.lua
 PrimusUnitFrames.lua
 """
