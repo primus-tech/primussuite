@@ -56,6 +56,9 @@ keyCapture:SetScript("OnKeyDown", function()
 end)
 
 function Keybind:StartHoverBind()
+    if Primus.Options and Primus.Options.Hide then
+        Primus.Options:Hide()
+    end
     isHoverBinding = true
     promptFrame:Show()
     keyCapture:Show()

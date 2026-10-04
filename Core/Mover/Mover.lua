@@ -640,6 +640,14 @@ end
 -- Unlock Frames (Optionally scoped to a category)
 function PUIMover:Unlock(category)
     isUnlocked = true
+
+    -- Auto-hide Options window so user doesn't have to organize around it
+    if Primus.Options and Primus.Options.Hide then
+        Primus.Options:Hide()
+    elseif _G.Primus_OptionsFrame and _G.Primus_OptionsFrame.Hide then
+        _G.Primus_OptionsFrame:Hide()
+    end
+
     local dock = CreateMoverDock()
     dock:Show()
 
@@ -713,6 +721,9 @@ function PUIMover:RegisterOptionsFlare()
                 desc = "Open floating mover dock and drag handles for all frames.",
                 buttonText = "Unlock All",
                 onClick = function()
+                    if Primus.Options and Primus.Options.Hide then
+                        Primus.Options:Hide()
+                    end
                     PUIMover:UnlockAll()
                 end,
             },

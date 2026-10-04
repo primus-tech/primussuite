@@ -3,8 +3,9 @@
     Target: Vanilla WoW 1.12.1 (Lua 5.0.2)
     
     Implements the Distributed Options Flare Handshake with dynamic LoD canvas rendering,
-    zero upfront memory allocation, 25%/75% Master Command Center layout, instant module
-    enable/disable checkboxes, and full Profile IO management.
+    zero upfront memory allocation, Top Category Navigation bar matching Modules/ taxonomy,
+    clean addon-name-only left tabs with rich hover GameTooltips, instant module enable/disable
+    checkboxes, auto-hiding on Mover engagement, and full Profile IO management.
 --]]
 
 local _G = getglobals and getglobals() or _G or getfenv(0)
@@ -35,21 +36,102 @@ local selectedCategory = "ALL"
 
 local optionsFrame     = nil
 local moduleRows       = {}
-local categoryDropdown = nil
 local profileDropdown  = nil
 
-local CATEGORY_FILTERS = {
-    { id = "ALL",      label = "All Categories" },
-    { id = "BARS",     label = "Action Bars" },
-    { id = "COMBAT",   label = "Combat & HUD" },
-    { id = "UNITS",    label = "Unit Frames" },
-    { id = "PLAYER",   label = "Player & Bags" },
-    { id = "SOCIAL",   label = "Social & Chat" },
-    { id = "ECONOMY",  label = "Economy & Trade" },
-    { id = "CLASS",    label = "Class Suite" },
-    { id = "UTILITY",  label = "Utility & Layout" },
-    { id = "SYSTEM",   label = "System & Engine" },
+-- Top Horizontal Category Taxonomy matching Modules/ directory structure
+local TOP_CATEGORIES = {
+    { id = "ALL",         label = "All",         desc = "Displays all modules across all categories." },
+    { id = "UTILITY",     label = "Utility",     desc = "General utilities, automation, maps, and workflow helpers." },
+    { id = "PLAYER",      label = "Player",      desc = "Player inventory, bags, bank, spellbook, and character sheet." },
+    { id = "COMBAT",      label = "Combat",      desc = "Combat engine, threat meters, cooldowns, and tactical alerts." },
+    { id = "HUD",         label = "HUD",         desc = "Heads-up displays, castbars, auras, and timers." },
+    { id = "UNITS",       label = "Units",       desc = "Unit frames, party, raid, nameplates, and bosses." },
+    { id = "BARS",        label = "Bars",        desc = "Action bars, stance bars, pet bars, microbar, and XP bar." },
+    { id = "SOCIAL",      label = "Social",      desc = "Chat systems, roleplay suite, and master looter." },
+    { id = "PROFESSIONS", label = "Professions", desc = "Trade skills, crafting queues, and recipe databases." },
+    { id = "GATHERING",   label = "Gathering",   desc = "Resource nodes, tracking radars, and harvesting helpers." },
+    { id = "CLASSES",     label = "Classes",     desc = "Class-specific power tracking and stance modules." },
+    { id = "SYSTEM",      label = "System",      desc = "Core engine diagnostics, skinner, mover, and keybinder." },
 }
+
+-- Dictionary of clean friendly names for compound identifiers
+local FRIENDLY_NAMES = {
+    ["UnitFrames"]     = "Unit Frames",
+    ["UnitBase"]       = "Unit Base",
+    ["ItemCompare"]    = "Item Compare",
+    ["AutoMechanics"]  = "Auto Mechanics",
+    ["FastLoot"]       = "Fast Loot",
+    ["MinimapOrbit"]   = "Minimap Orbit",
+    ["Minimapper"]     = "Minimap",
+    ["MasterLoot"]     = "Master Loot",
+    ["SellValue"]      = "Sell Value",
+    ["CharacterSheet"] = "Character Sheet",
+    ["QuestWatch"]     = "Quest Watch",
+    ["CombatAuras"]    = "Combat Auras",
+    ["CombatLog"]      = "Combat Log",
+    ["CastBar"]        = "Cast Bar",
+    ["HealComm"]       = "Heal Comm",
+    ["LogViewer"]      = "Log Viewer",
+    ["Zen"]            = "Zen Mode",
+}
+
+-- =========================================================================
+-- CLEAN NAME & CATEGORY RESOLUTION HELPERS
+-- =========================================================================
+
+local function GetCleanModuleName(flare)
+    if not flare then return "Unknown" end
+    if flare.meta and flare.meta.shortName and flare.meta.shortName ~= "" then
+        return flare.meta.shortName
+    end
+
+    local raw = (flare.meta and (flare.meta.name or flare.meta.label or flare.meta.title)) or flare.id or "Module"
+
+    -- Strip "Primus" or "PUI" prefixes
+    if string.sub(raw, 1, 6) == "Primus" then
+        raw = string.sub(raw, 7)
+    elseif string.sub(raw, 1, 3) == "PUI" then
+        raw = string.sub(raw, 4)
+    end
+    if string.sub(raw, 1, 1) == "_" or string.sub(raw, 1, 1) == " " then
+        raw = string.sub(raw, 2)
+    end
+
+    -- If there is a trailing description or hyphen/parenthesis/colon, extract base
+    local dashPos = string.find(raw, " %- ") or string.find(raw, " %:") or string.find(raw, " %(")
+    if dashPos and dashPos > 1 then
+        raw = string.sub(raw, 1, dashPos - 1)
+    end
+    raw = Utils.Trim(raw)
+    if raw == "" then
+        raw = flare.id
+    end
+
+    if FRIENDLY_NAMES[raw] then
+        return FRIENDLY_NAMES[raw]
+    end
+    return raw
+end
+
+local function MatchesCategory(flareCat, filterCat)
+    if not filterCat or filterCat == "ALL" then return true end
+    local fUpper = string.upper(flareCat or "")
+    local filterUpper = string.upper(filterCat or "")
+
+    if filterUpper == "BARS" and (fUpper == "BARS" or fUpper == "ACTION BARS" or fUpper == "ACTIONBARS") then return true end
+    if filterUpper == "COMBAT" and (fUpper == "COMBAT" or fUpper == "THREAT" or fUpper == "DAMAGE" or fUpper == "COMBAT & HUD") then return true end
+    if filterUpper == "HUD" and (fUpper == "HUD" or fUpper == "AURAS" or fUpper == "HUD & AURAS") then return true end
+    if filterUpper == "UNITS" and (fUpper == "UNITS" or fUpper == "UNIT FRAMES" or fUpper == "UNITFRAMES" or fUpper == "RAID" or fUpper == "PARTY") then return true end
+    if filterUpper == "PLAYER" and (fUpper == "PLAYER" or fUpper == "BAGS" or fUpper == "CONTAINERS" or fUpper == "INVENTORY" or fUpper == "PLAYER & BAGS") then return true end
+    if filterUpper == "SOCIAL" and (fUpper == "SOCIAL" or fUpper == "CHAT" or fUpper == "ROLEPLAY" or fUpper == "SOCIAL & CHAT") then return true end
+    if filterUpper == "PROFESSIONS" and (fUpper == "PROFESSIONS" or fUpper == "TRADE" or fUpper == "TRADESKILL" or fUpper == "CRAFTING" or fUpper == "ECONOMY" or fUpper == "ECONOMY & TRADE") then return true end
+    if filterUpper == "GATHERING" and (fUpper == "GATHERING" or fUpper == "TRACKING" or fUpper == "HARVESTING") then return true end
+    if filterUpper == "CLASSES" and (fUpper == "CLASSES" or fUpper == "CLASS" or fUpper == "CLASS SUITE" or fUpper == "CLASS NUANCE") then return true end
+    if filterUpper == "UTILITY" and (fUpper == "UTILITY" or fUpper == "LAYOUT" or fUpper == "UTILITY & LAYOUT" or fUpper == "GENERAL UTILITY") then return true end
+    if filterUpper == "SYSTEM" and (fUpper == "SYSTEM" or fUpper == "CORE" or fUpper == "GENERAL" or fUpper == "SYSTEM & ENGINE" or fUpper == "ENGINE") then return true end
+
+    return fUpper == filterUpper
+end
 
 -- =========================================================================
 -- FLARE PROTOCOL REGISTRATION API
@@ -116,7 +198,7 @@ end
 
 function Options:BuildDeclarativePanel(parent, flare)
     local panel = CreateFrame("Frame", nil, parent)
-    panel:SetWidth(480)
+    panel:SetWidth(500)
 
     local opts = flare.meta.options or flare.meta.fields or {}
     local totalOpts = table.getn(opts)
@@ -306,28 +388,6 @@ function Options:BuildDeclarativePanel(parent, flare)
 end
 
 -- =========================================================================
--- CATEGORY MATCHING HELPER
--- =========================================================================
-
-local function MatchesCategory(flareCat, filterCat)
-    if not filterCat or filterCat == "ALL" then return true end
-    local fUpper = string.upper(flareCat or "")
-    local filterUpper = string.upper(filterCat)
-
-    if filterUpper == "BARS" and (fUpper == "BARS" or fUpper == "ACTION BARS") then return true end
-    if filterUpper == "COMBAT" and (fUpper == "COMBAT" or fUpper == "HUD" or fUpper == "COMBAT & HUD") then return true end
-    if filterUpper == "UNITS" and (fUpper == "UNITS" or fUpper == "UNIT FRAMES") then return true end
-    if filterUpper == "PLAYER" and (fUpper == "PLAYER" or fUpper == "BAGS" or fUpper == "CONTAINERS" or fUpper == "PLAYER & BAGS") then return true end
-    if filterUpper == "SOCIAL" and (fUpper == "SOCIAL" or fUpper == "CHAT" or fUpper == "SOCIAL & CHAT") then return true end
-    if filterUpper == "ECONOMY" and (fUpper == "ECONOMY" or fUpper == "GATHERING" or fUpper == "PROFESSIONS" or fUpper == "ECONOMY & TRADE") then return true end
-    if filterUpper == "CLASS" and (fUpper == "CLASS" or fUpper == "CLASS SUITE") then return true end
-    if filterUpper == "UTILITY" and (fUpper == "UTILITY" or fUpper == "LAYOUT" or fUpper == "UTILITY & LAYOUT") then return true end
-    if filterUpper == "SYSTEM" and (fUpper == "SYSTEM" or fUpper == "CORE" or fUpper == "GENERAL" or fUpper == "SYSTEM & ENGINE") then return true end
-
-    return fUpper == filterUpper
-end
-
--- =========================================================================
 -- DYNAMIC LoD CANVAS LOADER & MODULE SELECTOR
 -- =========================================================================
 
@@ -391,9 +451,70 @@ function Options:SelectModule(id)
     self:RefreshModuleList()
 end
 
+function Options:ClearCanvas()
+    for panelId, panel in pairs(cachedPanels) do
+        panel:Hide()
+    end
+    if optionsFrame and optionsFrame.banner then
+        local b = optionsFrame.banner
+        b.title:SetText(Utils.ColorText(selectedCategory .. " Modules", "ffd100"))
+        b.cat:SetText(Utils.ColorText("Category: " .. selectedCategory, "69ccf0"))
+        b.desc:SetText("No modules are currently registered or active in this category.")
+        b.icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
+        b.status:SetText("")
+    end
+end
 
 -- =========================================================================
--- LEFT 25% MODULE LIST & CHECKBOX RENDERER
+-- TOP CATEGORY SELECTION HANDLER
+-- =========================================================================
+
+function Options:SetSelectedCategory(catId)
+    selectedCategory = catId or "ALL"
+    self:RefreshCategoryTabs()
+    self:RefreshModuleList()
+
+    -- Check if currently active module is visible in new category
+    local isActiveVisible = false
+    local firstVisibleId = nil
+
+    local totalOrder = table.getn(flareOrder)
+    for i = 1, totalOrder do
+        local id = flareOrder[i]
+        local flare = registeredFlares[id]
+        if flare and MatchesCategory(flare.meta.category, selectedCategory) then
+            if not firstVisibleId then firstVisibleId = id end
+            if id == activeModuleId then
+                isActiveVisible = true
+                break
+            end
+        end
+    end
+
+    if not isActiveVisible and firstVisibleId then
+        self:SelectModule(firstVisibleId)
+    elseif not firstVisibleId then
+        self:ClearCanvas()
+    end
+end
+
+function Options:RefreshCategoryTabs()
+    if not optionsFrame or not optionsFrame.categoryTabs then return end
+    for _, tab in ipairs(optionsFrame.categoryTabs) do
+        if tab.catId == selectedCategory then
+            tab:SetBackdropColor(0.18, 0.32, 0.55, 1.0)
+            tab:SetBackdropBorderColor(0.35, 0.75, 1.0, 1.0)
+            tab.label:SetTextColor(1.0, 1.0, 1.0)
+        else
+            tab:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
+            tab:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+            tab.label:SetTextColor(0.70, 0.75, 0.85)
+        end
+    end
+end
+
+-- =========================================================================
+-- LEFT 25% MODULE LIST & CHECKBOX RENDERER (CLEAN ADDON NAMES + RICH TOOLTIP)
 -- =========================================================================
 
 function Options:RefreshModuleList()
@@ -417,27 +538,28 @@ function Options:RefreshModuleList()
 
     for i = 1, count do
         local flare = visibleFlares[i]
+        local cleanName = GetCleanModuleName(flare)
         local row = moduleRows[i]
         if not row then
             row = CreateFrame("Frame", nil, parent)
             row:SetWidth(186)
             row:SetHeight(rowHeight)
             row:SetBackdrop(Media:Fetch("border", "1Pixel"))
-            row:SetBackdropColor(0.08, 0.10, 0.14, 0.8)
+            row:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
             row:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
 
             -- Enable Checkbox
             local cb = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
             cb:SetWidth(18)
             cb:SetHeight(18)
-            cb:SetPoint("LEFT", row, "LEFT", 2, 0)
+            cb:SetPoint("LEFT", row, "LEFT", 3, 0)
             cb:SetHitRectInsets(0, 0, 0, 0)
             row.cb = cb
 
-            -- Clickable Title Button
+            -- Clickable Title Button (Clean Addon Name Alone)
             local btn = CreateFrame("Button", nil, row)
-            btn:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-            btn:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+            btn:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+            btn:SetPoint("RIGHT", row, "RIGHT", -3, 0)
             btn:SetHeight(rowHeight)
 
             local title = btn:CreateFontString(nil, "OVERLAY")
@@ -446,6 +568,7 @@ function Options:RefreshModuleList()
             title:SetPoint("RIGHT", btn, "RIGHT", -2, 0)
             title:SetJustifyH("LEFT")
             btn.title = title
+            btn.parentRow = row
             row.btn = btn
 
             moduleRows[i] = row
@@ -453,9 +576,15 @@ function Options:RefreshModuleList()
 
         row:SetPoint("TOPLEFT", parent, "TOPLEFT", 2, -(i - 1) * (rowHeight + spacing) - 2)
         row.moduleId = flare.id
+        row.flare = flare
+        row.cleanName = cleanName
         row.cb.moduleId = flare.id
         row.btn.moduleId = flare.id
-        row.btn.title:SetText(flare.meta.title or flare.id)
+        row.btn.flare = flare
+        row.btn.cleanName = cleanName
+
+        -- Set clean addon name alone on the left tab button
+        row.btn.title:SetText(cleanName)
 
         -- Checkbox state & handler
         local isEnabled = Primus:IsModuleEnabled(flare.id)
@@ -477,19 +606,73 @@ function Options:RefreshModuleList()
             Options:SelectModule(activeModuleId)
         end)
 
+        row.cb:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT", 4, 0)
+            GameTooltip:ClearLines()
+            local en = Primus:IsModuleEnabled(this.moduleId)
+            GameTooltip:AddLine("Module State", 1.0, 0.82, 0.0)
+            GameTooltip:AddLine(en and "Click to disable this module." or "Click to enable this module.", 0.85, 0.85, 0.85)
+            GameTooltip:Show()
+        end)
+
+        row.cb:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
         -- Selection Highlight
         if flare.id == activeModuleId then
-            row:SetBackdropColor(0.20, 0.30, 0.45, 1.0)
-            row:SetBackdropBorderColor(0.40, 0.75, 1.00, 1.0)
+            row:SetBackdropColor(0.18, 0.30, 0.50, 1.0)
+            row:SetBackdropBorderColor(0.35, 0.75, 1.00, 1.0)
             row.btn.title:SetTextColor(1.0, 1.0, 1.0)
         else
-            row:SetBackdropColor(0.08, 0.10, 0.14, 0.8)
+            row:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
             row:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
-            row.btn.title:SetTextColor(0.8, 0.8, 0.8)
+            row.btn.title:SetTextColor(0.82, 0.85, 0.90)
         end
 
         row.btn:SetScript("OnClick", function()
             Options:SelectModule(this.moduleId)
+        end)
+
+        -- Rich GameTooltip Description on Hover
+        row.btn:SetScript("OnEnter", function()
+            local f = this.flare
+            if not f then return end
+            if f.id ~= activeModuleId then
+                this.parentRow:SetBackdropColor(0.14, 0.18, 0.26, 0.95)
+                this.parentRow:SetBackdropBorderColor(0.35, 0.50, 0.75, 0.95)
+            end
+
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT", 4, 0)
+            GameTooltip:ClearLines()
+
+            local headerTitle = f.meta.title or ("Primus " .. (this.cleanName or f.id))
+            local en = Primus:IsModuleEnabled(f.id)
+            if f.id == "System" or f.id == "Options" then en = true end
+
+            GameTooltip:AddLine(headerTitle, 1.0, 0.82, 0.0)
+            local statStr = en and "|cff33ff33[ Active ]|r" or "|cffff4444[ Disabled ]|r"
+            GameTooltip:AddDoubleLine("Category: " .. (f.meta.category or "General"), statStr, 0.41, 0.80, 0.94, 1, 1, 1)
+
+            local d = f.meta.desc or f.meta.description or ("Configures and manages options for " .. (this.cleanName or f.id) .. ".")
+            GameTooltip:AddLine(" ", 1, 1, 1)
+            GameTooltip:AddLine(d, 0.9, 0.9, 0.9, true)
+
+            local cmd = f.meta.command or f.meta.slash or ("/primus " .. string.lower(string.gsub(this.cleanName or f.id, "%s+", "")))
+            GameTooltip:AddLine(" ", 1, 1, 1)
+            GameTooltip:AddDoubleLine("Slash Command:", cmd, 0.6, 0.6, 0.6, 1.0, 0.82, 0.2)
+            GameTooltip:AddLine("|cff666666<Click tab to configure> <Toggle box to enable/disable>|r", 0.4, 0.4, 0.4)
+
+            GameTooltip:Show()
+        end)
+
+        row.btn:SetScript("OnLeave", function()
+            local f = this.flare
+            if f and f.id ~= activeModuleId then
+                this.parentRow:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
+                this.parentRow:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+            end
+            GameTooltip:Hide()
         end)
 
         row:Show()
@@ -573,7 +756,7 @@ local function BuildSystemPanel(parent)
     sScale:SetPoint("TOPLEFT", titleScale, "BOTTOMLEFT", 0, -10)
 
     local zDB = DB:GetNamespace("Zen")
-    local cbZen = Widgets:CreateCheckButton(p, "Enable Combat Zen Focus Engine (/pui zen)", zDB and zDB:Get("enabled", true) or true, function(checked)
+    local cbZen = Widgets:CreateCheckButton(p, "Enable Combat Zen Focus Engine (/primus zen)", zDB and zDB:Get("enabled", true) or true, function(checked)
         local db = DB:GetNamespace("Zen")
         if db then db:Set("enabled", checked) end
         if Primus.State and Primus.State.ApplyState then Primus.State:ApplyState(true) end
@@ -615,7 +798,7 @@ end
 function Options:CreateGUI()
     if optionsFrame then return optionsFrame end
 
-    local w, h = 760, 530
+    local w, h = 780, 540
     optionsFrame = CreateFrame("Frame", "Primus_OptionsFrame", UIParent)
     optionsFrame:SetFrameStrata("FULLSCREEN_DIALOG")
     optionsFrame:SetFrameLevel(100)
@@ -636,7 +819,7 @@ function Options:CreateGUI()
     local header = CreateFrame("Frame", nil, optionsFrame)
     header:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", 4, -4)
     header:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -4, -4)
-    header:SetHeight(28)
+    header:SetHeight(26)
     header:SetBackdrop(Media:Fetch("border", "1Pixel"))
     header:SetBackdropColor(0.10, 0.14, 0.22, 1.0)
     header:SetBackdropBorderColor(0.20, 0.40, 0.70, 1)
@@ -660,81 +843,100 @@ function Options:CreateGUI()
     closeBtn:SetScript("OnClick", function() optionsFrame:Hide() end)
 
     -- =====================================================================
-    -- LEFT 25% STATIC COMMAND CENTER (WIDTH = 200)
+    -- TOP HORIZONTAL CATEGORY TABS BAR (MIRRORS MODULES/ TAXONOMY)
+    -- =====================================================================
+    local topCategoryBar = CreateFrame("Frame", nil, optionsFrame)
+    topCategoryBar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -3)
+    topCategoryBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -3)
+    topCategoryBar:SetHeight(24)
+    topCategoryBar:SetBackdrop(Media:Fetch("border", "1Pixel"))
+    topCategoryBar:SetBackdropColor(0.05, 0.06, 0.08, 0.95)
+    topCategoryBar:SetBackdropBorderColor(0.18, 0.22, 0.30, 0.8)
+    optionsFrame.topCategoryBar = topCategoryBar
+
+    local categoryTabs = {}
+    optionsFrame.categoryTabs = categoryTabs
+
+    local numTabs = table.getn(TOP_CATEGORIES)
+    local totalBarWidth = w - 8 -- 772
+    local tabSpacing = 2
+    local tabWidth = math.floor((totalBarWidth - (numTabs - 1) * tabSpacing) / numTabs)
+
+    for idx, catData in ipairs(TOP_CATEGORIES) do
+        local tab = CreateFrame("Button", "Primus_OptionsCatTab_" .. catData.id, topCategoryBar)
+        tab:SetWidth(tabWidth)
+        tab:SetHeight(22)
+        tab:SetPoint("LEFT", topCategoryBar, "LEFT", (idx - 1) * (tabWidth + tabSpacing) + 1, 0)
+        tab:SetBackdrop(Media:Fetch("border", "1Pixel"))
+        tab:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
+        tab:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+        tab.catId = catData.id
+        tab.catData = catData
+
+        local label = tab:CreateFontString(nil, "OVERLAY")
+        label:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+        label:SetPoint("CENTER", tab, "CENTER", 0, 0)
+        label:SetText(catData.label)
+        tab.label = label
+
+        tab:SetScript("OnClick", function()
+            Options:SetSelectedCategory(this.catId)
+        end)
+
+        tab:SetScript("OnEnter", function()
+            if this.catId ~= selectedCategory then
+                this:SetBackdropColor(0.14, 0.20, 0.30, 0.95)
+                this:SetBackdropBorderColor(0.35, 0.55, 0.80, 1.0)
+            end
+            GameTooltip:SetOwner(this, "ANCHOR_TOP", 0, 4)
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine("Category: " .. this.catData.label, 1.0, 0.82, 0.0)
+            GameTooltip:AddLine(this.catData.desc, 0.85, 0.85, 0.85, true)
+
+            local matchCount = 0
+            for _, id in ipairs(flareOrder) do
+                local flare = registeredFlares[id]
+                if flare and MatchesCategory(flare.meta.category, this.catId) then
+                    matchCount = matchCount + 1
+                end
+            end
+            GameTooltip:AddLine(string.format("|cff69ccf0Modules in category:|r %d", matchCount), 0.6, 0.8, 1.0)
+            GameTooltip:Show()
+        end)
+
+        tab:SetScript("OnLeave", function()
+            Options:RefreshCategoryTabs()
+            GameTooltip:Hide()
+        end)
+
+        categoryTabs[idx] = tab
+    end
+
+    -- =====================================================================
+    -- LEFT 25% STATIC COMMAND CENTER (WIDTH = 196)
     -- =====================================================================
     local sidebar = CreateFrame("Frame", nil, optionsFrame)
-    sidebar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
+    sidebar:SetPoint("TOPLEFT", topCategoryBar, "BOTTOMLEFT", 0, -3)
     sidebar:SetPoint("BOTTOMLEFT", optionsFrame, "BOTTOMLEFT", 4, 4)
-    sidebar:SetWidth(200)
+    sidebar:SetWidth(196)
     sidebar:SetBackdrop(Media:Fetch("border", "1Pixel"))
     sidebar:SetBackdropColor(0.04, 0.05, 0.07, 0.95)
     sidebar:SetBackdropBorderColor(0.15, 0.18, 0.25, 0.8)
 
-    -- Category Filter Header Button
-    local catBtn = CreateFrame("Button", nil, sidebar)
-    catBtn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 4, -4)
-    catBtn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -4, -4)
-    catBtn:SetHeight(22)
-    catBtn:SetBackdrop(Media:Fetch("border", "1Pixel"))
-    catBtn:SetBackdropColor(0.12, 0.16, 0.24, 1.0)
-    catBtn:SetBackdropBorderColor(0.30, 0.45, 0.70, 1.0)
-
-    local catText = catBtn:CreateFontString(nil, "OVERLAY")
-    catText:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-    catText:SetPoint("LEFT", catBtn, "LEFT", 6, 0)
-    catText:SetText(Utils.ColorText("Category: All Categories ▼", "ffd100"))
-    catBtn.text = catText
-
-    -- Category Dropdown Popup Menu
-    local catMenu = CreateFrame("Frame", nil, sidebar)
-    catMenu:SetPoint("TOPLEFT", catBtn, "BOTTOMLEFT", 0, -2)
-    catMenu:SetPoint("TOPRIGHT", catBtn, "BOTTOMRIGHT", 0, -2)
-    catMenu:SetHeight(table.getn(CATEGORY_FILTERS) * 20 + 4)
-    catMenu:SetBackdrop(Media:Fetch("border", "1Pixel"))
-    catMenu:SetBackdropColor(0.05, 0.06, 0.08, 0.98)
-    catMenu:SetBackdropBorderColor(0.30, 0.50, 0.80, 1.0)
-    catMenu:SetFrameLevel(sidebar:GetFrameLevel() + 10)
-    catMenu:Hide()
-
-    for idx, cData in ipairs(CATEGORY_FILTERS) do
-        local mItem = CreateFrame("Button", nil, catMenu)
-        mItem:SetPoint("TOPLEFT", catMenu, "TOPLEFT", 2, -(idx - 1) * 20 - 2)
-        mItem:SetPoint("TOPRIGHT", catMenu, "TOPRIGHT", -2, -(idx - 1) * 20 - 2)
-        mItem:SetHeight(18)
-        mItem.catId = cData.id
-        mItem.catLabel = cData.label
-        local mT = mItem:CreateFontString(nil, "OVERLAY")
-        mT:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
-        mT:SetPoint("LEFT", mItem, "LEFT", 4, 0)
-        mT:SetText(cData.label)
-        mItem:SetScript("OnClick", function()
-            selectedCategory = this.catId
-            catText:SetText(Utils.ColorText("Category: " .. (this.catLabel or "") .. " ▼", "ffd100"))
-            catMenu:Hide()
-            Options:RefreshModuleList()
-        end)
-        mItem:SetScript("OnEnter", function() this:SetBackdropColor(0.2, 0.4, 0.7, 0.8) end)
-        mItem:SetScript("OnLeave", function() this:SetBackdropColor(0, 0, 0, 0) end)
-    end
-
-    catBtn:SetScript("OnClick", function()
-        if catMenu:IsShown() then catMenu:Hide() else catMenu:Show() end
-    end)
-
     -- Module Scroll Box
     local modScroll = CreateFrame("ScrollFrame", "Primus_ModListScroll", sidebar, "UIPanelScrollFrameTemplate")
-    modScroll:SetPoint("TOPLEFT", catBtn, "BOTTOMLEFT", 0, -4)
-    modScroll:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", -22, 140)
+    modScroll:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 4, -4)
+    modScroll:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", -22, 134)
 
     local modScrollChild = CreateFrame("Frame", nil, modScroll)
-    modScrollChild:SetWidth(170)
+    modScrollChild:SetWidth(168)
     modScrollChild:SetHeight(200)
     modScroll:SetScrollChild(modScrollChild)
     optionsFrame.moduleScrollChild = modScrollChild
 
     -- Profile & Quick Actions Section (Bottom of Left Column)
     local profileSec = CreateFrame("Frame", nil, sidebar)
-    profileSec:SetPoint("TOPLEFT", modScroll, "BOTTOMLEFT", 0, -4)
+    profileSec:SetPoint("TOPLEFT", sidebar, "BOTTOMLEFT", 4, 130)
     profileSec:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", -4, 4)
     profileSec:SetBackdrop(Media:Fetch("border", "1Pixel"))
     profileSec:SetBackdropColor(0.06, 0.08, 0.12, 0.9)
@@ -802,15 +1004,19 @@ function Options:CreateGUI()
     btnDel:SetPoint("LEFT", btnLoad, "RIGHT", 4, 0)
     btnDel:SetBackdropBorderColor(0.8, 0.2, 0.2, 1)
 
-    -- Quick Utilities: Unlock UI, HoverBind, Reload UI
+    -- Quick Utilities: Unlock UI (Auto-hides Options!), HoverBind, Reload UI
     local btnUnlock = Widgets:CreateButton(profileSec, "Unlock UI", 56, 18, function()
+        Options:Hide()
         local mover = Primus.PUIMover or PUIMover or _G.PUIMover
-        if mover and mover.ToggleLock then mover:ToggleLock() end
+        if mover and mover.ToggleLock then
+            mover:ToggleLock()
+        end
     end)
     btnUnlock:SetPoint("TOPLEFT", btnSave, "BOTTOMLEFT", 0, -4)
     btnUnlock:SetBackdropBorderColor(0.3, 0.6, 1.0, 1)
 
     local btnBind = Widgets:CreateButton(profileSec, "HoverBind", 56, 18, function()
+        Options:Hide()
         if Primus.Keybind and Primus.Keybind.ToggleHoverBind then
             Primus.Keybind:ToggleHoverBind()
         end
@@ -825,7 +1031,7 @@ function Options:CreateGUI()
     btnReload:SetBackdropBorderColor(0.2, 0.8, 0.4, 1)
 
     -- =====================================================================
-    -- RIGHT 75% DYNAMIC LoD CANVAS (WIDTH = 540)
+    -- RIGHT 75% DYNAMIC LoD CANVAS (WIDTH = 568)
     -- =====================================================================
     local rightContainer = CreateFrame("Frame", nil, optionsFrame)
     rightContainer:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 4, 0)
@@ -838,7 +1044,7 @@ function Options:CreateGUI()
     local banner = CreateFrame("Frame", nil, rightContainer)
     banner:SetPoint("TOPLEFT", rightContainer, "TOPLEFT", 4, -4)
     banner:SetPoint("TOPRIGHT", rightContainer, "TOPRIGHT", -4, -4)
-    banner:SetHeight(48)
+    banner:SetHeight(46)
     banner:SetBackdrop(Media:Fetch("border", "1Pixel"))
     banner:SetBackdropColor(0.08, 0.12, 0.18, 1.0)
     banner:SetBackdropBorderColor(0.20, 0.35, 0.60, 1.0)
@@ -879,18 +1085,20 @@ function Options:CreateGUI()
     canvasScroll:SetPoint("BOTTOMRIGHT", rightContainer, "BOTTOMRIGHT", -22, 4)
 
     local canvasScrollChild = CreateFrame("Frame", nil, canvasScroll)
-    canvasScrollChild:SetWidth(510)
+    canvasScrollChild:SetWidth(530)
     canvasScrollChild:SetHeight(390)
     canvasScroll:SetScrollChild(canvasScrollChild)
     optionsFrame.canvasScrollChild = canvasScrollChild
 
     -- Initial synchronization
     RefreshProfileSelector(profSelector, profEdit)
+    Options:RefreshCategoryTabs()
     Options:RefreshModuleList()
     Options:SelectModule("System")
 
     optionsFrame:SetScript("OnShow", function()
         RefreshProfileSelector(profSelector, profEdit)
+        Options:RefreshCategoryTabs()
         Options:RefreshModuleList()
         Options:SelectModule(activeModuleId or "System")
     end)
@@ -903,6 +1111,20 @@ function Options:CreateGUI()
     return optionsFrame
 end
 
+function Options:Show()
+    self:CreateGUI()
+    if optionsFrame then
+        optionsFrame:Show()
+        optionsFrame:Raise()
+    end
+end
+
+function Options:Hide()
+    if optionsFrame and optionsFrame:IsShown() then
+        optionsFrame:Hide()
+    end
+end
+
 function Options:Toggle()
     self:CreateGUI()
     if optionsFrame:IsShown() then
@@ -911,6 +1133,10 @@ function Options:Toggle()
         optionsFrame:Show()
         optionsFrame:Raise()
     end
+end
+
+function Options:IsOpen()
+    return optionsFrame and optionsFrame:IsShown()
 end
 
 -- =========================================================================
@@ -973,7 +1199,7 @@ function Options:OnInitialize()
         SetupGameMenuButton()
     end)
 
-    -- Register console commands /pui config and /pui gui
+    -- Register console commands /primus config, /pui config, /primus gui, /pui gui
     local Console = Primus.Console
     if Console then
         Console:RegisterSubCommand("config", function()
