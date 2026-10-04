@@ -37,6 +37,9 @@ local merchantDB = DB:RegisterNamespace("PUIMerchant", {
     showTooltipSparkline = true,
     flyoutSide = "RIGHT", -- "LEFT" or "RIGHT"
     flyoutOpen = true,
+    scanPacingMode = "ADAPTIVE", -- "ADAPTIVE", "PATIENT", "STANDARD", "FAST", "TURBO"
+    undercutAmount = 1,          -- 1 copper or 1 percent step-down
+    undercutType = "COPPER",     -- "COPPER" or "PERCENT"
     realms = {},
     priceData = {},
 })
@@ -137,6 +140,7 @@ function PUIMerchant:RecordAuctionListing(itemName, unitPrice, itemMeta, realm, 
             itemClass        = itemMeta and itemMeta.itemClass or "Trade Goods",
             itemLevel        = itemMeta and itemMeta.itemLevel or 1,
             latestMinBuyout  = unitPrice,
+            latestTimeLeft   = itemMeta and itemMeta.timeLeft or 4,
             lastSeen         = now,
             runningAvg7d     = unitPrice,
             runningMedian7d  = unitPrice,
@@ -152,6 +156,7 @@ function PUIMerchant:RecordAuctionListing(itemName, unitPrice, itemMeta, realm, 
             if itemMeta.texture and not pData.texture then pData.texture = itemMeta.texture end
             if itemMeta.quality and pData.quality == 1 then pData.quality = itemMeta.quality end
             if itemMeta.itemLevel then pData.itemLevel = itemMeta.itemLevel end
+            if itemMeta.timeLeft then pData.latestTimeLeft = itemMeta.timeLeft end
         end
     end
 
@@ -314,4 +319,38 @@ function PUIMerchant:GetItemMetrics(itemName, realm, ahType)
     end
 
     return pData
+end
+
+-- =========================================================================
+-- TIME-LEFT EXPIRATION FORMATTING HELPERS
+-- =========================================================================
+
+function PUIMerchant:FormatTimeLeftBadge(timeLeft)
+    timeLeft = tonumber(timeLeft) or 4
+    if timeLeft == 1 then
+        return "|cffff2020<30m|r"
+    elseif timeLeft == 2 then
+        return "|cffff9900~2h|r"
+    elseif timeLeft == 3 then
+        return "|cffffff00~8h|r"
+    elseif timeLeft == 4 then
+        return "|cff1eff00~24h|r"
+    else
+        return "|cff888888--|r"
+    end
+end
+
+function PUIMerchant:GetTimeLeftText(timeLeft)
+    timeLeft = tonumber(timeLeft) or 4
+    if timeLeft == 1 then
+        return "Short (< 30 minutes)"
+    elseif timeLeft == 2 then
+        return "Medium (30m - 2 hours)"
+    elseif timeLeft == 3 then
+        return "Long (2 - 8 hours)"
+    elseif timeLeft == 4 then
+        return "Very Long (8 - 24 hours)"
+    else
+        return "Unknown"
+    end
 end

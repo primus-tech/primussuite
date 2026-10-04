@@ -35,6 +35,108 @@ local lastAuctionedItemName = nil
 -- SELLER ASSISTANCE & 1-CLICK UNDERCUT ENGINE
 -- =========================================================================
 
+-- Calculate Vendor Sell Safety Floor (Price * 1.10)
+function PUIMerchant:GetVendorSafetyFloor(name, count, rawPrice)
+    count = (count and count > 0) and count or 1
+    local floorCopper = 1
+
+    if rawPrice and rawPrice > 0 then
+        floorCopper = math.max(1, math.floor(rawPrice * 1.10))
+    else
+        local itemID = Items and Items.GetID and Items:GetID(name)
+        if itemID and VanillaItemPrices and VanillaItemPrices[itemID] then
+            local vSell = (VanillaItemPrices[itemID].s or 0) * count
+            if vSell > 0 then
+                floorCopper = math.max(1, math.floor(vSell * 1.10))
+            end
+        end
+    end
+    return floorCopper
+end
+
+-- 1-Click Undercut Step-Down Dispatcher
+function PUIMerchant:ApplyUndercutStepDown(mode, delta)
+    if not AuctionFrameAuctions or not AuctionFrameAuctions:IsShown() then return end
+
+    local name, texture, count, quality, canUse, price = GetAuctionSellItemInfo()
+    if not name or name == "" then
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Please place an item into the auction slot first.", "ffbb33"))
+        return
+    end
+
+    count = (count and count > 0) and count or 1
+    local vendorFloor = self:GetVendorSafetyFloor(name, count, price)
+
+    if mode == "RESET" then
+        local defaultBid = (price and price > 0) and price or 100
+        local defaultBuyout = math.floor(defaultBid * 1.20)
+        if StartPrice then MoneyInputFrame_SetCopper(StartPrice, defaultBid) end
+        if BuyoutPrice then MoneyInputFrame_SetCopper(BuyoutPrice, defaultBuyout) end
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Reset %s (x%d) to default valuation.", name, count), "69ccf0"))
+        return
+    end
+
+    local pData = self:GetItemMetrics(name)
+    local baseUnitBuyout = 0
+    local baseUnitMedian = 0
+
+    if pData then
+        baseUnitBuyout = pData.latestMinBuyout or 0
+        baseUnitMedian = pData.runningMedian7d or pData.runningAvg7d or 0
+    end
+
+    local targetUnitBuyout = 0
+
+    if mode == "COPPER" then
+        delta = delta or 1
+        if baseUnitBuyout > 0 then
+            targetUnitBuyout = math.max(1, baseUnitBuyout - delta)
+        elseif baseUnitMedian > 0 then
+            targetUnitBuyout = math.max(1, baseUnitMedian - delta)
+        end
+    elseif mode == "PERCENT" then
+        delta = delta or 1
+        local refPrice = (baseUnitBuyout > 0) and baseUnitBuyout or baseUnitMedian
+        if refPrice > 0 then
+            local factor = (100 - delta) / 100
+            targetUnitBuyout = math.max(1, math.floor(refPrice * factor))
+        end
+    elseif mode == "MATCH" then
+        if baseUnitBuyout > 0 then
+            targetUnitBuyout = baseUnitBuyout
+        elseif baseUnitMedian > 0 then
+            targetUnitBuyout = baseUnitMedian
+        end
+    elseif mode == "MEDIAN" then
+        if baseUnitMedian > 0 then
+            targetUnitBuyout = baseUnitMedian
+        elseif baseUnitBuyout > 0 then
+            targetUnitBuyout = baseUnitBuyout
+        end
+    end
+
+    if targetUnitBuyout == 0 then
+        targetUnitBuyout = math.max(1, math.floor((vendorFloor / count) * 1.50))
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: No AH history for '%s'. Estimating above vendor floor.", name), "ffbb33"))
+    end
+
+    local totalBuyout = targetUnitBuyout * count
+    local isClamped = false
+
+    if totalBuyout < vendorFloor then
+        totalBuyout = vendorFloor
+        isClamped = true
+    end
+
+    local totalBid = math.max(vendorFloor, math.floor(totalBuyout * 0.85))
+
+    if BuyoutPrice then MoneyInputFrame_SetCopper(BuyoutPrice, totalBuyout) end
+    if StartPrice then MoneyInputFrame_SetCopper(StartPrice, totalBid) end
+
+    local clampTag = isClamped and " |cffffbb33(Vendor Floor Safe)|r" or ""
+    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Step-Down [%s] %s (x%d) -> Buyout: %s | Bid: %s%s", mode, name, count, Utils.FormatMoney(totalBuyout), Utils.FormatMoney(totalBid), clampTag), "69ccf0"))
+end
+
 function PUIMerchant:UpdateAuctionAutoPricing()
     if not AuctionFrameAuctions or not AuctionFrameAuctions:IsShown() then return end
 
@@ -48,20 +150,30 @@ function PUIMerchant:UpdateAuctionAutoPricing()
     lastAuctionedItemName = name
 
     count = (count and count > 0) and count or 1
+    local vendorFloor = self:GetVendorSafetyFloor(name, count, price)
+
+    -- Update Undercut Bar Floor Label
+    if AuctionFrameAuctions.primusUndercutBar and AuctionFrameAuctions.primusUndercutBar.floorLabel then
+        AuctionFrameAuctions.primusUndercutBar.floorLabel:SetText(string.format("Floor: %s", Utils.FormatMoney(vendorFloor)))
+    end
+
     local pData = self:GetItemMetrics(name)
-    if not pData then return end
+    if not pData then
+        local totalBid = (price and price > 0) and price or 100
+        local totalBuyout = math.max(vendorFloor, math.floor(totalBid * 1.30))
+        if BuyoutPrice then MoneyInputFrame_SetCopper(BuyoutPrice, totalBuyout) end
+        if StartPrice then MoneyInputFrame_SetCopper(StartPrice, totalBid) end
+        return
+    end
 
     local targetBuyoutPerUnit = 0
     local targetBidPerUnit = 0
 
-    -- Calculate Undercut Buyout Price
-    if pData.runningMedian7d and pData.runningMedian7d > 0 then
-        -- Suggest 98% of 7-day Median or 1c below latest minimum buyout
-        if pData.latestMinBuyout and pData.latestMinBuyout > 100 then
-            targetBuyoutPerUnit = pData.latestMinBuyout - 1
-        else
-            targetBuyoutPerUnit = math.floor(pData.runningMedian7d * 0.98)
-        end
+    -- Calculate Undercut Buyout Price (-1c below lowest min buyout or 98% median)
+    if pData.latestMinBuyout and pData.latestMinBuyout > 100 then
+        targetBuyoutPerUnit = pData.latestMinBuyout - 1
+    elseif pData.runningMedian7d and pData.runningMedian7d > 0 then
+        targetBuyoutPerUnit = math.floor(pData.runningMedian7d * 0.98)
     elseif pData.latestMinBuyout and pData.latestMinBuyout > 0 then
         targetBuyoutPerUnit = pData.latestMinBuyout
     end
@@ -75,9 +187,9 @@ function PUIMerchant:UpdateAuctionAutoPricing()
         targetBidPerUnit = math.floor(targetBuyoutPerUnit * 0.80)
     end
 
-    -- Apply Stack Total
-    local totalBuyout = targetBuyoutPerUnit * count
-    local totalBid = targetBidPerUnit * count
+    -- Apply Stack Total & Floor Safety
+    local totalBuyout = math.max(vendorFloor, targetBuyoutPerUnit * count)
+    local totalBid = math.max(vendorFloor, targetBidPerUnit * count)
 
     if totalBuyout > 0 and BuyoutPrice then
         MoneyInputFrame_SetCopper(BuyoutPrice, totalBuyout)
@@ -86,7 +198,7 @@ function PUIMerchant:UpdateAuctionAutoPricing()
         MoneyInputFrame_SetCopper(StartPrice, totalBid)
     end
 
-    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Auto-Priced %s (x%d) -> Buyout: %s | Bid: %s", name, count, Utils.FormatMoney(totalBuyout), Utils.FormatMoney(totalBid)), "69ccf0"))
+    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Auto-Priced %s (x%d) -> Buyout: %s | Bid: %s (Floor: %s)", name, count, Utils.FormatMoney(totalBuyout), Utils.FormatMoney(totalBid), Utils.FormatMoney(vendorFloor)), "69ccf0"))
 end
 
 local function HookAuctionsTab()
@@ -305,24 +417,58 @@ function PUIMerchant:OnInitialize()
     if Primus.Console and Primus.Console.RegisterSubCommand then
         Primus.Console:RegisterSubCommand("merchant", function(argParam)
             argParam = Utils.Trim(argParam or "")
-            if argParam == "stop" then
+            local cmd, subArg = string.match(argParam, "^(%S+)%s*(.*)$")
+            cmd = string.lower(cmd or argParam or "")
+
+            if cmd == "stop" then
                 PUIMerchant:StopScan()
-            elseif argParam == "scan" or argParam == "" then
+            elseif cmd == "scan" or cmd == "" then
                 if AuctionFrame and AuctionFrame:IsShown() then
                     PUIMerchant:StartScan(0)
                 else
                     DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Open the Auction House to run an AH scan.", "69ccf0"))
                 end
-            elseif argParam == "prune" then
+            elseif cmd == "pacing" then
+                subArg = string.upper(Utils.Trim(subArg or ""))
+                if subArg == "10S" or subArg == "PATIENT" then
+                    PUIMerchant:SetPacingMode("PATIENT")
+                elseif subArg == "5S" or subArg == "STANDARD" then
+                    PUIMerchant:SetPacingMode("STANDARD")
+                elseif subArg == "2.5S" or subArg == "FAST" then
+                    PUIMerchant:SetPacingMode("FAST")
+                elseif subArg == "1S" or subArg == "TURBO" then
+                    PUIMerchant:SetPacingMode("TURBO")
+                else
+                    PUIMerchant:SetPacingMode("ADAPTIVE")
+                end
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Scanner pacing set to %s (%0.1fs).", PUIMerchant.scannerState.pacingMode, PUIMerchant:GetPacingDelay()), "69ccf0"))
+            elseif cmd == "undercut" then
+                subArg = string.lower(Utils.Trim(subArg or ""))
+                if subArg == "1c" or subArg == "copper" then
+                    PUIMerchant:ApplyUndercutStepDown("COPPER", 1)
+                elseif subArg == "1%" or subArg == "1" then
+                    PUIMerchant:ApplyUndercutStepDown("PERCENT", 1)
+                elseif subArg == "5%" or subArg == "5" then
+                    PUIMerchant:ApplyUndercutStepDown("PERCENT", 5)
+                elseif subArg == "match" then
+                    PUIMerchant:ApplyUndercutStepDown("MATCH")
+                elseif subArg == "median" then
+                    PUIMerchant:ApplyUndercutStepDown("MEDIAN")
+                elseif subArg == "reset" then
+                    PUIMerchant:ApplyUndercutStepDown("RESET")
+                else
+                    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Usage: /pui merchant undercut [1c | 1% | 5% | match | median | reset]", "ffbb33"))
+                end
+            elseif cmd == "prune" then
                 local purged = PUIMerchant:PruneOldHistory(nil, 14)
                 DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Pruned %d stale entries older than 14 days.", purged), "69ccf0"))
-            elseif argParam == "market" or argParam == "deals" then
-                PUIMerchant:ToggleMarketExplorer(argParam == "deals")
+            elseif cmd == "market" or cmd == "deals" or cmd == "sniper" then
+                PUIMerchant:ToggleMarketExplorer(cmd == "deals" or cmd == "sniper")
             else
                 DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("=== PrimusUI Merchant & Economy Suite ===", "69ccf0"))
-                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("/pui merchant [scan | stop | prune | market | deals]", "ffbb33"))
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("/pui merchant [scan | stop | pacing | undercut | prune | market | deals]", "ffbb33"))
             end
-        end, "PUIMerchant AH price scanner & valuation (/pui merchant [scan|stop|prune|market])")
+        end, "PUIMerchant AH price scanner & valuation (/pui merchant [scan|stop|pacing|undercut|market])")
 
         Primus.Console:RegisterSubCommand("market", function(argParam)
             argParam = Utils.Trim(argParam or "")
@@ -363,6 +509,10 @@ function PUIMerchant:OnEnable()
             PUIMerchant:SniffBrowsePage()
             PUIMerchant:UpdateBrowsePrices()
         end
+    end)
+
+    Events:Register("NEW_AUCTION_UPDATE", "PUIMerchant", function()
+        PUIMerchant:UpdateAuctionAutoPricing()
     end)
 
     Events:Register("AUCTION_HOUSE_CLOSED", "PUIMerchant", function()

@@ -36,8 +36,21 @@ local pageRetries = 0
 local maxRetries = 3
 local currentScope = 0 -- 0 = All, 6 = Trade Goods, 4 = Consumables, 1 = Weapons, 2 = Armor
 
-local PAGE_COOLDOWN = 10.0  -- 10-second inter-page delay to guarantee safety on DDoS-limited servers
-local SCAN_TIMEOUT  = 25.0  -- 25-second watchdog for slow server responses
+-- Adaptive Step-Down Throttle Configuration
+local PACING_PRESETS = {
+    ["PATIENT"]  = 10.0,
+    ["STANDARD"] = 5.0,
+    ["FAST"]     = 2.5,
+    ["TURBO"]    = 1.0,
+}
+local MIN_COOLDOWN_FLOOR = 1.0
+local MAX_COOLDOWN_CEIL  = 12.0
+local STEP_DOWN_DELTA    = 0.5  -- -0.5s after 2 consecutive clean pages
+local STEP_UP_BACKOFF    = 2.5  -- +2.5s on throttle/retry
+local currentEffectiveCooldown = 5.0
+local consecutiveSuccessPages = 0
+
+local SCAN_TIMEOUT = 25.0  -- 25-second watchdog for slow server responses
 
 PUIMerchant.scannerState = {
     isScanning = false,
@@ -46,10 +59,66 @@ PUIMerchant.scannerState = {
     totalPages = 1,
     totalCataloged = 0,
     remainingCooldown = 0,
+    currentCooldown = 5.0,
+    pacingMode = "ADAPTIVE",
     etaSeconds = 0,
     etaText = "--",
     statusText = "Ready",
 }
+
+-- Calculate Active Pacing Delay
+function PUIMerchant:GetPacingDelay()
+    local mode = self.db and self.db:Get("scanPacingMode", "ADAPTIVE") or "ADAPTIVE"
+    if mode == "ADAPTIVE" then
+        return currentEffectiveCooldown
+    elseif PACING_PRESETS[mode] then
+        return PACING_PRESETS[mode]
+    else
+        return 5.0
+    end
+end
+
+-- Set User Pacing Preset
+function PUIMerchant:SetPacingMode(mode)
+    if not mode then mode = "ADAPTIVE" end
+    if self.db then
+        self.db:Set("scanPacingMode", mode)
+    end
+    if mode == "ADAPTIVE" then
+        currentEffectiveCooldown = 5.0
+        consecutiveSuccessPages = 0
+    elseif PACING_PRESETS[mode] then
+        currentEffectiveCooldown = PACING_PRESETS[mode]
+    end
+    PUIMerchant.scannerState.pacingMode = mode
+    PUIMerchant.scannerState.currentCooldown = currentEffectiveCooldown
+    if self.UpdateFlyoutScannerUI then
+        self:UpdateFlyoutScannerUI()
+    end
+end
+
+-- Step Down Delay on Consecutive Clean Pages
+function PUIMerchant:StepDownCooldown()
+    local mode = self.db and self.db:Get("scanPacingMode", "ADAPTIVE") or "ADAPTIVE"
+    if mode ~= "ADAPTIVE" then return end
+
+    consecutiveSuccessPages = consecutiveSuccessPages + 1
+    if consecutiveSuccessPages >= 2 then
+        consecutiveSuccessPages = 0
+        if currentEffectiveCooldown > MIN_COOLDOWN_FLOOR then
+            currentEffectiveCooldown = math.max(MIN_COOLDOWN_FLOOR, currentEffectiveCooldown - STEP_DOWN_DELTA)
+        end
+    end
+end
+
+-- Step Up Backoff on Throttle or Dropped Query
+function PUIMerchant:StepUpBackoff()
+    local mode = self.db and self.db:Get("scanPacingMode", "ADAPTIVE") or "ADAPTIVE"
+    consecutiveSuccessPages = 0
+    if mode == "ADAPTIVE" then
+        currentEffectiveCooldown = math.min(MAX_COOLDOWN_CEIL, currentEffectiveCooldown + STEP_UP_BACKOFF)
+    end
+end
 
 -- Format Seconds into Human-Readable ETA (e.g., 2h 15m or 4m 30s)
 function PUIMerchant:FormatETA(seconds)
@@ -80,11 +149,13 @@ local function UpdateScannerState(statusMsg)
     local rem = math.floor(pageCooldownEnd - now)
     if rem < 0 then rem = 0 end
     PUIMerchant.scannerState.remainingCooldown = rem
+    PUIMerchant.scannerState.currentCooldown = PUIMerchant:GetPacingDelay()
+    PUIMerchant.scannerState.pacingMode = PUIMerchant.db and PUIMerchant.db:Get("scanPacingMode", "ADAPTIVE") or "ADAPTIVE"
 
     -- Dynamic ETA Estimation
     local remainingPages = totalPages - scanPage
     if remainingPages < 0 then remainingPages = 0 end
-    local totalEtaSeconds = (remainingPages * PAGE_COOLDOWN) + rem
+    local totalEtaSeconds = math.ceil((remainingPages * PUIMerchant:GetPacingDelay()) + rem)
     if not isScanning or scanPage == 0 then totalEtaSeconds = 0 end
 
     PUIMerchant.scannerState.etaSeconds = totalEtaSeconds
@@ -187,13 +258,14 @@ function PUIMerchant:StartScan(scopeCategory, forceFresh)
         isPaused = false
 
         lastQueryTime = GetTime()
-        pageCooldownEnd = lastQueryTime + PAGE_COOLDOWN
+        local pacingDelay = self:GetPacingDelay()
+        pageCooldownEnd = lastQueryTime + pacingDelay
 
         local scopeName = self:GetScopeName(currentScope)
         if CanSendAuctionQuery() then
             isWaitingForNextPage = false
             UpdateScannerState(string.format("Resuming at Page %d/%d (%s)...", scanPage + 1, totalPages, scopeName))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Resuming Scan at Page %d/%d (2-page safety rewind) [%s AH - %s]...", scanPage + 1, totalPages, ahType, scopeName), "69ccf0"))
+            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Resuming Scan at Page %d/%d (2-page safety rewind) [%s AH - %s - %s]...", scanPage + 1, totalPages, ahType, scopeName, PUIMerchant.scannerState.pacingMode), "69ccf0"))
             QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
         else
             isWaitingForNextPage = true
@@ -211,13 +283,14 @@ function PUIMerchant:StartScan(scopeCategory, forceFresh)
         pageRetries = 0
 
         lastQueryTime = GetTime()
-        pageCooldownEnd = lastQueryTime + PAGE_COOLDOWN
+        local pacingDelay = self:GetPacingDelay()
+        pageCooldownEnd = lastQueryTime + pacingDelay
 
         local scopeName = self:GetScopeName(currentScope)
         if CanSendAuctionQuery() then
             isWaitingForNextPage = false
             UpdateScannerState(string.format("Requesting Page 1 (%s - %s)...", scopeName, ahType))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Starting 10s-Paced Scan [%s AH - %s]...", ahType, scopeName), "69ccf0"))
+            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Starting %s AH Scan [%s AH - %s] (Pacing: %0.1fs)...", PUIMerchant.scannerState.pacingMode, ahType, scopeName, pacingDelay), "69ccf0"))
             QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, 0, 0, 0)
         else
             isWaitingForNextPage = true
@@ -241,7 +314,7 @@ function PUIMerchant:ResumeScan()
     if not isScanning or not isPaused then return end
     isPaused = false
     lastQueryTime = GetTime()
-    pageCooldownEnd = lastQueryTime + PAGE_COOLDOWN
+    pageCooldownEnd = lastQueryTime + self:GetPacingDelay()
     isWaitingForNextPage = true
     UpdateScannerState(string.format("Resuming at Page %d/%d...", scanPage + 1, totalPages))
     DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Resuming AH scan...", "69ccf0"))
@@ -277,9 +350,10 @@ function PUIMerchant:ProcessScanResults()
     if (not totalAuctions or totalAuctions == 0) and numBatchAuctions == 0 and scanPage == 0 then
         if pageRetries < maxRetries then
             pageRetries = pageRetries + 1
+            self:StepUpBackoff()
             isWaitingForNextPage = true
             lastQueryTime = GetTime()
-            pageCooldownEnd = lastQueryTime + PAGE_COOLDOWN
+            pageCooldownEnd = lastQueryTime + self:GetPacingDelay()
             UpdateScannerState(string.format("Waiting on AH server (retry %d)...", pageRetries))
             return
         else
@@ -299,6 +373,7 @@ function PUIMerchant:ProcessScanResults()
     if numBatchAuctions and numBatchAuctions > 0 then
         for i = 1, numBatchAuctions do
             local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice = GetAuctionItemInfo("list", i)
+            local timeLeft = GetAuctionItemTimeLeft("list", i)
             if name and count and count > 0 then
                 local unitPrice = 0
                 if buyoutPrice and buyoutPrice > 0 then
@@ -312,6 +387,7 @@ function PUIMerchant:ProcessScanResults()
                         texture = texture,
                         quality = quality or 1,
                         itemLevel = level or 1,
+                        timeLeft = timeLeft,
                     }, realm, ahType)
                     totalAuctionsCataloged = totalAuctionsCataloged + 1
                 end
@@ -321,6 +397,7 @@ function PUIMerchant:ProcessScanResults()
 
     scanPage = scanPage + 1
     pageRetries = 0
+    self:StepDownCooldown() -- Accelerate/step-down throttle on consecutive successful page receipts
     self:SaveScanCheckpoint()
 
     if scanPage >= totalPages or (numBatchAuctions == 0 and scanPage > 1) then
@@ -328,8 +405,9 @@ function PUIMerchant:ProcessScanResults()
     else
         isWaitingForNextPage = true
         lastQueryTime = GetTime()
-        pageCooldownEnd = lastQueryTime + PAGE_COOLDOWN
-        UpdateScannerState(string.format("Page %d/%d (%d items) - Cooldown 10s...", scanPage, totalPages, totalAuctionsCataloged))
+        local pacingDelay = self:GetPacingDelay()
+        pageCooldownEnd = lastQueryTime + pacingDelay
+        UpdateScannerState(string.format("Page %d/%d (%d items) - Cooldown %0.1fs...", scanPage, totalPages, totalAuctionsCataloged, pacingDelay))
     end
 end
 
@@ -367,6 +445,7 @@ function PUIMerchant:SniffBrowsePage()
 
     for i = 1, numBatchAuctions do
         local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice = GetAuctionItemInfo("list", i)
+        local timeLeft = GetAuctionItemTimeLeft("list", i)
         if name and count and count > 0 then
             local unitPrice = 0
             if buyoutPrice and buyoutPrice > 0 then
@@ -380,6 +459,7 @@ function PUIMerchant:SniffBrowsePage()
                     texture = texture,
                     quality = quality or 1,
                     itemLevel = level or 1,
+                    timeLeft = timeLeft,
                 }, realm, ahType)
             end
         end
@@ -391,8 +471,8 @@ end
 -- =========================================================================
 
 function PUIMerchant:InitScannerTicker()
-    -- Fast 0.25s loop for query dispatch & watchdog
-    Time:Every(0.25, function()
+    -- Fast 0.20s loop for query dispatch & watchdog
+    Time:Every(0.20, function()
         if not isScanning or isPaused then return end
 
         local now = GetTime()
@@ -408,7 +488,7 @@ function PUIMerchant:InitScannerTicker()
             if now >= pageCooldownEnd and CanSendAuctionQuery() then
                 isWaitingForNextPage = false
                 lastQueryTime = now
-                pageCooldownEnd = now + PAGE_COOLDOWN
+                pageCooldownEnd = now + PUIMerchant:GetPacingDelay()
                 UpdateScannerState(string.format("Querying Page %d/%d (%d items)...", scanPage + 1, totalPages, totalAuctionsCataloged))
                 QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
             end
@@ -417,8 +497,9 @@ function PUIMerchant:InitScannerTicker()
             if (now - lastQueryTime) > SCAN_TIMEOUT then
                 if pageRetries < maxRetries then
                     pageRetries = pageRetries + 1
+                    PUIMerchant:StepUpBackoff()
                     lastQueryTime = now
-                    pageCooldownEnd = now + PAGE_COOLDOWN
+                    pageCooldownEnd = now + PUIMerchant:GetPacingDelay()
                     if CanSendAuctionQuery() then
                         UpdateScannerState(string.format("Retrying Page %d/%d (attempt %d)...", scanPage + 1, totalPages, pageRetries))
                         QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
@@ -432,15 +513,16 @@ function PUIMerchant:InitScannerTicker()
         end
     end, "PUIMerchantScanner")
 
-    -- 1.0s UI Countdown Ticker
-    Time:Every(1.0, function()
+    -- 0.5s UI Countdown Ticker (Smooth step-down visual updates)
+    Time:Every(0.5, function()
         if not isScanning then return end
         if isWaitingForNextPage and not isPaused then
             local now = GetTime()
-            local rem = math.floor(pageCooldownEnd - now)
-            if rem > 0 then
-                UpdateScannerState(string.format("Page %d/%d (%d items) - Next in %ds...", scanPage, totalPages, totalAuctionsCataloged, rem))
-            end
+            local rem = math.floor(pageCooldownEnd - now + 0.5)
+            if rem < 0 then rem = 0 end
+            local curPacing = PUIMerchant:GetPacingDelay()
+            local pacingTag = (PUIMerchant.scannerState.pacingMode == "ADAPTIVE") and string.format("⚡ %0.1fs Auto", curPacing) or string.format("%0.1fs", curPacing)
+            UpdateScannerState(string.format("Page %d/%d (%d items) - Next in %ds (%s)...", scanPage, totalPages, totalAuctionsCataloged, rem, pacingTag))
         end
     end, "PUIMerchantCountdown")
 end

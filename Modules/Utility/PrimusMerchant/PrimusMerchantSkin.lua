@@ -30,6 +30,7 @@ local resetScanBtn = nil
 local scanStatusLabel = nil
 local scanCountdownLabel = nil
 local scanProgressBar = nil
+local pacingButtons = {}
 
 -- =========================================================================
 -- AUCTION HOUSE FRAME DARK GLASS RESKIN
@@ -172,6 +173,9 @@ function PUIMerchant:SkinAuctionHouse()
     if BidBuyoutButton then SkinButton(BidBuyoutButton, "Buyout") end
     if BidCloseButton then SkinButton(BidCloseButton, "Close") end
 
+    -- Create 1-Click Price Step-Down Undercut Bar
+    PUIMerchant:CreateAuctionUndercutBar()
+
     AuctionFrame.primusSkinned = true
 end
 
@@ -275,25 +279,50 @@ function PUIMerchant:CreateFlyoutDrawer()
     sep1:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -32)
     sep1:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -32)
 
-    -- Section: 10s Patient Scanner
+    -- Section: Adaptive AH Scanner
     local scanSectionLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
     scanSectionLabel:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
     scanSectionLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -38)
     scanSectionLabel:SetTextColor(0.9, 0.8, 0.4)
-    scanSectionLabel:SetText("10s Patient AH Scanner")
+    scanSectionLabel:SetText("Adaptive AH Scanner")
+
+    -- Pacing Presets Rail (5 buttons)
+    pacingButtons = {}
+    local pacingModes = {
+        { mode = "ADAPTIVE", label = "⚡Auto", width = 38 },
+        { mode = "PATIENT",  label = "10s",   width = 30 },
+        { mode = "STANDARD", label = "5.0s",  width = 32 },
+        { mode = "FAST",     label = "2.5s",  width = 32 },
+        { mode = "TURBO",    label = "1.0s",  width = 32 },
+    }
+    local prevPBtn = nil
+    for _, pInfo in ipairs(pacingModes) do
+        local modeKey = pInfo.mode
+        local pBtn = Widgets:CreateButton(flyoutFrame, pInfo.label, pInfo.width, 16, function()
+            PUIMerchant:SetPacingMode(modeKey)
+            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Scanner pacing set to %s (%0.1fs).", modeKey, PUIMerchant:GetPacingDelay()), "69ccf0"))
+        end)
+        if not prevPBtn then
+            pBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -52)
+        else
+            pBtn:SetPoint("LEFT", prevPBtn, "RIGHT", 2, 0)
+        end
+        pacingButtons[modeKey] = pBtn
+        prevPBtn = pBtn
+    end
 
     -- Scan Action Button (Start / Pause / Resume / Stop)
-    scanActionButton = Widgets:CreateButton(flyoutFrame, "Scan AH (10s)", 176, 24, function()
+    scanActionButton = Widgets:CreateButton(flyoutFrame, "Scan AH", 176, 22, function()
         PUIMerchant:StartScan(0)
     end)
-    scanActionButton:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -54)
+    scanActionButton:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -72)
     scanActionButton:SetBackdropBorderColor(1.0, 0.84, 0.0, 1.0)
 
     -- Stop Scan Button (Left)
     stopScanBtn = Widgets:CreateButton(flyoutFrame, "Stop", 86, 18, function()
         PUIMerchant:StopScan()
     end)
-    stopScanBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -82)
+    stopScanBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -96)
     stopScanBtn:SetBackdropBorderColor(0.8, 0.2, 0.2, 0.8)
 
     -- Start Fresh / New Scan Button (Right)
@@ -308,7 +337,7 @@ function PUIMerchant:CreateFlyoutDrawer()
     scanProgressBar = CreateFrame("StatusBar", nil, flyoutFrame)
     scanProgressBar:SetWidth(176)
     scanProgressBar:SetHeight(10)
-    scanProgressBar:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -106)
+    scanProgressBar:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -118)
     scanProgressBar:SetStatusBarTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
     scanProgressBar:SetStatusBarColor(0.20, 0.75, 1.0, 0.85)
     scanProgressBar:SetMinMaxValues(0, 100)
@@ -320,20 +349,20 @@ function PUIMerchant:CreateFlyoutDrawer()
     -- Scan Status Text
     scanStatusLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
     scanStatusLabel:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
-    scanStatusLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -120)
+    scanStatusLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -131)
     scanStatusLabel:SetTextColor(0.7, 0.7, 0.7)
     scanStatusLabel:SetText("Ready to scan")
 
     -- Scan Countdown Text (Live 1s timer)
     scanCountdownLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
-    scanCountdownLabel:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-    scanCountdownLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -134)
+    scanCountdownLabel:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+    scanCountdownLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -144)
     scanCountdownLabel:SetTextColor(1.0, 0.84, 0.0)
     scanCountdownLabel:SetText("")
 
     -- Scope Selector Buttons
     local scopeAllBtn = Widgets:CreateButton(flyoutFrame, "All", 40, 18, function() PUIMerchant:StartScan(0) end)
-    scopeAllBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -152)
+    scopeAllBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -160)
 
     local scopeMatsBtn = Widgets:CreateButton(flyoutFrame, "Trade", 42, 18, function() PUIMerchant:StartScan(6) end)
     scopeMatsBtn:SetPoint("LEFT", scopeAllBtn, "RIGHT", 3, 0)
@@ -349,13 +378,13 @@ function PUIMerchant:CreateFlyoutDrawer()
     sep2:SetTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
     sep2:SetVertexColor(0.20, 0.20, 0.25, 0.8)
     sep2:SetHeight(1)
-    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -178)
-    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -178)
+    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -184)
+    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -184)
 
     -- Section: Quick Shortcuts & Analytics
     local toolsLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
     toolsLabel:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-    toolsLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -186)
+    toolsLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -192)
     toolsLabel:SetTextColor(0.9, 0.8, 0.4)
     toolsLabel:SetText("Market Tools & Explorer")
 
@@ -365,15 +394,14 @@ function PUIMerchant:CreateFlyoutDrawer()
             PUIMerchant:ToggleMarketExplorer()
         end
     end)
-    openExplorerBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -202)
+    openExplorerBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -208)
     openExplorerBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 0.85)
 
-    -- Open Deal Finder / Sniping Tab Button
     -- Open Deal Finder / Sniping Flyout Button
     local openDealsBtn = Widgets:CreateButton(flyoutFrame, "Deal Finder & Sniper", 176, 22, function()
         PUIMerchant:ToggleDealFlyout()
     end)
-    openDealsBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -228)
+    openDealsBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -234)
     openDealsBtn:SetBackdropBorderColor(0.20, 0.85, 0.35, 0.85)
 
     -- Prune DB Button
@@ -381,25 +409,25 @@ function PUIMerchant:CreateFlyoutDrawer()
         local purged = PUIMerchant:PruneOldHistory(nil, 14)
         DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Pruned %d stale entries older than 14 days.", purged), "69ccf0"))
     end)
-    pruneBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -256)
+    pruneBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -260)
 
     -- Toggles
     local qbCheck = Widgets:CreateCheckButton(flyoutFrame, "Shift+Click Quick Buyout", 12, function(selfChecked)
         PUIMerchant.db:Set("quickBuyout", selfChecked)
     end)
-    qbCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -284)
+    qbCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -286)
     qbCheck:SetChecked(PUIMerchant.db:Get("quickBuyout", true))
 
     local ttCheck = Widgets:CreateCheckButton(flyoutFrame, "Show Prices in Tooltips", 12, function(selfChecked)
         PUIMerchant.db:Set("showTooltipPrices", selfChecked)
     end)
-    ttCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -304)
+    ttCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -306)
     ttCheck:SetChecked(PUIMerchant.db:Get("showTooltipPrices", true))
 
     local sparkCheck = Widgets:CreateCheckButton(flyoutFrame, "Shift-Hover Sparkline", 12, function(selfChecked)
         PUIMerchant.db:Set("showTooltipSparkline", selfChecked)
     end)
-    sparkCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -324)
+    sparkCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -326)
     sparkCheck:SetChecked(PUIMerchant.db:Get("showTooltipSparkline", true))
 
     PUIMerchant.flyoutFrame = flyoutFrame
@@ -420,7 +448,7 @@ end
 local dealFlyoutFrame = nil
 local dealRows = {}
 local NUM_DEAL_ROWS = 10
-local dealFilterMode = 70 -- 70 = <=70% MV, 50 = <=50% MV, 0 = Vendor Snipes only
+local dealFilterMode = 70 -- 70 = <=70% MV, 50 = <=50% MV, 0 = Vendor Snipes, "EXPIRING" = <30m
 local cachedDealsList = {}
 
 function PUIMerchant:UpdateDealFlyoutAnchor()
@@ -468,10 +496,11 @@ function PUIMerchant:RefreshDealFlyoutData()
         local isDeal = false
         local mvPct = 100
         local profitEst = 0
+        local timeLeft = pData.latestTimeLeft or 4
 
         if runMed > 0 and minB > 0 then
             mvPct = math.floor((minB / runMed) * 100)
-            if dealFilterMode > 0 and mvPct <= dealFilterMode then
+            if type(dealFilterMode) == "number" and dealFilterMode > 0 and mvPct <= dealFilterMode then
                 isDeal = true
                 profitEst = runMed - minB
             end
@@ -482,9 +511,21 @@ function PUIMerchant:RefreshDealFlyoutData()
         if itemID and VanillaItemPrices and VanillaItemPrices[itemID] then
             local vSell = VanillaItemPrices[itemID].s or 0
             if vSell > 0 and minB > 0 and minB < vSell then
+                if dealFilterMode == 0 or (type(dealFilterMode) == "number" and dealFilterMode >= 0) then
+                    isDeal = true
+                    profitEst = vSell - minB
+                    mvPct = 0 -- Top priority
+                end
+            end
+        end
+
+        -- Expiring Soon (<30m) Filter Mode
+        if dealFilterMode == "EXPIRING" then
+            if timeLeft == 1 and minB > 0 then
                 isDeal = true
-                profitEst = vSell - minB
-                mvPct = 0 -- Top priority
+                profitEst = (runMed > minB) and (runMed - minB) or 0
+            else
+                isDeal = false
             end
         end
 
@@ -496,12 +537,18 @@ function PUIMerchant:RefreshDealFlyoutData()
                 runMed = runMed,
                 mvPct = mvPct,
                 profitEst = profitEst,
+                timeLeft = timeLeft,
             })
         end
     end
 
-    -- Sort by best discount % (lowest MV %)
+    -- Sort by best discount % or expiring soonest
     table.sort(cachedDealsList, function(a, b)
+        if dealFilterMode == "EXPIRING" then
+            if a.timeLeft ~= b.timeLeft then
+                return a.timeLeft < b.timeLeft
+            end
+        end
         return a.mvPct < b.mvPct
     end)
 
@@ -541,7 +588,11 @@ function PUIMerchant:UpdateDealFlyoutTable()
             if deal.mvPct == 0 then
                 row.mvText:SetText("|cff1eff00[VENDOR!]|r")
             else
-                row.mvText:SetText(string.format("|cff1eff00%d%% MV|r", deal.mvPct))
+                row.mvText:SetText(string.format("|cff1eff00%d%%|r", deal.mvPct))
+            end
+
+            if row.timeLeftBadge then
+                row.timeLeftBadge:SetText(PUIMerchant:FormatTimeLeftBadge(deal.timeLeft))
             end
 
             row:Show()
@@ -584,29 +635,35 @@ function PUIMerchant:CreateDealFlyoutDrawer()
     closeTxt:SetTextColor(0.8, 0.8, 0.8)
     closeBtn:SetScript("OnClick", function() dealFlyoutFrame:Hide() end)
 
-    -- Filter Buttons
-    local f70Btn = Widgets:CreateButton(dealFlyoutFrame, "<=70%", 50, 18, function()
+    -- Filter Buttons (5 buttons across header)
+    local f70Btn = Widgets:CreateButton(dealFlyoutFrame, "<=70%", 40, 18, function()
         dealFilterMode = 70
         PUIMerchant:RefreshDealFlyoutData()
     end)
-    f70Btn:SetPoint("TOPLEFT", dealFlyoutFrame, "TOPLEFT", 8, -32)
+    f70Btn:SetPoint("TOPLEFT", dealFlyoutFrame, "TOPLEFT", 6, -32)
 
-    local f50Btn = Widgets:CreateButton(dealFlyoutFrame, "<=50%", 50, 18, function()
+    local f50Btn = Widgets:CreateButton(dealFlyoutFrame, "<=50%", 40, 18, function()
         dealFilterMode = 50
         PUIMerchant:RefreshDealFlyoutData()
     end)
-    f50Btn:SetPoint("LEFT", f70Btn, "RIGHT", 4, 0)
+    f50Btn:SetPoint("LEFT", f70Btn, "RIGHT", 3, 0)
 
-    local fVendBtn = Widgets:CreateButton(dealFlyoutFrame, "Vendor", 50, 18, function()
+    local fVendBtn = Widgets:CreateButton(dealFlyoutFrame, "Vendor", 44, 18, function()
         dealFilterMode = 0
         PUIMerchant:RefreshDealFlyoutData()
     end)
-    fVendBtn:SetPoint("LEFT", f50Btn, "RIGHT", 4, 0)
+    fVendBtn:SetPoint("LEFT", f50Btn, "RIGHT", 3, 0)
 
-    local refBtn = Widgets:CreateButton(dealFlyoutFrame, "Scan", 46, 18, function()
+    local fExpBtn = Widgets:CreateButton(dealFlyoutFrame, "<30m ⏳", 44, 18, function()
+        dealFilterMode = "EXPIRING"
         PUIMerchant:RefreshDealFlyoutData()
     end)
-    refBtn:SetPoint("LEFT", fVendBtn, "RIGHT", 4, 0)
+    fExpBtn:SetPoint("LEFT", fVendBtn, "RIGHT", 3, 0)
+
+    local refBtn = Widgets:CreateButton(dealFlyoutFrame, "Scan", 36, 18, function()
+        PUIMerchant:RefreshDealFlyoutData()
+    end)
+    refBtn:SetPoint("LEFT", fExpBtn, "RIGHT", 3, 0)
 
     -- Scroll Frame
     local sFrame = CreateFrame("ScrollFrame", "PUIMerchantDealFlyoutScroll", dealFlyoutFrame, "FauxScrollFrameTemplate")
@@ -641,7 +698,7 @@ function PUIMerchant:CreateDealFlyoutDrawer()
         local nameText = row:CreateFontString(nil, "OVERLAY")
         nameText:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
         nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 6, -1)
-        nameText:SetWidth(125)
+        nameText:SetWidth(110)
         nameText:SetJustifyH("LEFT")
         row.nameText = nameText
 
@@ -656,10 +713,14 @@ function PUIMerchant:CreateDealFlyoutDrawer()
         priceText:SetTextColor(0.85, 0.85, 0.85)
         row.priceText = priceText
 
+        local timeLeftBadge = row:CreateFontString(nil, "OVERLAY")
+        timeLeftBadge:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+        timeLeftBadge:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -4, 2)
+        row.timeLeftBadge = timeLeftBadge
+
         -- 1-Click Search & Snipe on Click
         row:SetScript("OnClick", function()
             if this.itemName and BrowseName and BrowseSearchButton then
-                -- Switch to Browse tab
                 if AuctionFrameTab1 then AuctionFrameTab1:Click() end
                 BrowseName:SetText(this.itemName)
                 BrowseSearchButton:Click()
@@ -676,6 +737,7 @@ function PUIMerchant:CreateDealFlyoutDrawer()
                 GameTooltip:AddDoubleLine("Current Buyout:", Utils.FormatMoney(this.deal.minB))
                 GameTooltip:AddDoubleLine("7-Day Core Median:", Utils.FormatMoney(this.deal.runMed))
                 GameTooltip:AddDoubleLine("Est. Profit Margin:", string.format("|cff1eff00+%s|r", Utils.FormatMoney(this.deal.profitEst)))
+                GameTooltip:AddDoubleLine("Time Remaining:", PUIMerchant:GetTimeLeftText(this.deal.timeLeft))
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine("|cff69ccf0Click to 1-click search & buy in AH!|r")
                 GameTooltip:Show()
@@ -690,12 +752,93 @@ function PUIMerchant:CreateDealFlyoutDrawer()
     PUIMerchant:UpdateDealFlyoutAnchor()
 end
 
+-- =========================================================================
+-- 1-CLICK UNDERCUT STEP-DOWN CONTROL RAIL (AuctionFrameAuctions)
+-- =========================================================================
+
+function PUIMerchant:CreateAuctionUndercutBar()
+    if not AuctionFrameAuctions or AuctionFrameAuctions.primusUndercutBar then return end
+
+    local bar = CreateFrame("Frame", "PUIMerchantAuctionUndercutFrame", AuctionFrameAuctions)
+    bar:SetWidth(194)
+    bar:SetHeight(76)
+    bar:SetPoint("TOPLEFT", AuctionFrameAuctions, "TOPLEFT", 18, -242)
+
+    if Skinner and Skinner.SkinFrame then
+        Skinner:SkinFrame(bar)
+    else
+        bar:SetBackdrop(Media:Fetch("border", "1Pixel"))
+        bar:SetBackdropColor(0.06, 0.06, 0.09, 0.96)
+        bar:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+    end
+
+    local title = bar:CreateFontString(nil, "OVERLAY")
+    title:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+    title:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -6)
+    title:SetText(Utils.ColorText("1-Click Undercut Step-Down", "69ccf0"))
+
+    local floorLabel = bar:CreateFontString(nil, "OVERLAY")
+    floorLabel:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+    floorLabel:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -8, -6)
+    floorLabel:SetTextColor(0.20, 0.85, 0.35)
+    floorLabel:SetText("Floor Safe")
+    bar.floorLabel = floorLabel
+
+    -- Row 1: [-1c], [-1%], [-5%]
+    local btn1c = Widgets:CreateButton(bar, "-1c 📉", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("COPPER", 1)
+    end)
+    btn1c:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -22)
+
+    local btn1p = Widgets:CreateButton(bar, "-1%", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("PERCENT", 1)
+    end)
+    btn1p:SetPoint("LEFT", btn1c, "RIGHT", 4, 0)
+
+    local btn5p = Widgets:CreateButton(bar, "-5%", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("PERCENT", 5)
+    end)
+    btn5p:SetPoint("LEFT", btn1p, "RIGHT", 4, 0)
+
+    -- Row 2: [Match], [Median], [Reset]
+    local btnMatch = Widgets:CreateButton(bar, "Match 🎯", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("MATCH")
+    end)
+    btnMatch:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -44)
+
+    local btnMedian = Widgets:CreateButton(bar, "Median 📊", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("MEDIAN")
+    end)
+    btnMedian:SetPoint("LEFT", btnMatch, "RIGHT", 4, 0)
+
+    local btnReset = Widgets:CreateButton(bar, "Reset ↺", 56, 18, function()
+        PUIMerchant:ApplyUndercutStepDown("RESET")
+    end)
+    btnReset:SetPoint("LEFT", btnMedian, "RIGHT", 4, 0)
+
+    AuctionFrameAuctions.primusUndercutBar = bar
+end
+
 -- Reactive UI Update Loop for Flyout Scanner Status
 function PUIMerchant:UpdateFlyoutScannerUI()
     if not flyoutFrame or not scanActionButton then return end
 
     local state = PUIMerchant.scannerState
     if not state then return end
+
+    -- Update pacing button active borders
+    local curMode = state.pacingMode or (PUIMerchant.db and PUIMerchant.db:Get("scanPacingMode", "ADAPTIVE")) or "ADAPTIVE"
+    if pacingButtons then
+        for modeKey, btn in pairs(pacingButtons) do
+            if modeKey == curMode then
+                btn:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
+                btn:SetBackdropColor(0.18, 0.25, 0.35, 0.95)
+            else
+                btn:SetBackdropBorderColor(0.25, 0.25, 0.30, 0.8)
+                btn:SetBackdropColor(0.10, 0.10, 0.14, 0.90)
+            end
+        end
+    end
 
     if state.isScanning then
         if state.isPaused then
@@ -705,10 +848,11 @@ function PUIMerchant:UpdateFlyoutScannerUI()
         else
             scanActionButton:SetText("Pause Scan")
             scanActionButton:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
+            local pacingTag = (state.pacingMode == "ADAPTIVE") and string.format("⚡ %0.1fs Step-Down", state.currentCooldown) or string.format("%0.1fs", state.currentCooldown)
             if state.remainingCooldown > 0 then
-                scanCountdownLabel:SetText(string.format("Next: |cffffd100%ds|r • ETA: |cff69ccf0%s|r", state.remainingCooldown, state.etaText or "--"))
+                scanCountdownLabel:SetText(string.format("Next: |cffffd100%ds|r (%s) • ETA: |cff69ccf0%s|r", state.remainingCooldown, pacingTag, state.etaText or "--"))
             else
-                scanCountdownLabel:SetText(string.format("|cff1eff00Querying...|r • ETA: |cff69ccf0%s|r", state.etaText or "--"))
+                scanCountdownLabel:SetText(string.format("|cff1eff00Querying AH...|r (%s)", pacingTag))
             end
         end
 
@@ -754,9 +898,10 @@ function PUIMerchant:UpdateFlyoutScannerUI()
                 resetScanBtn:Show()
             end
         else
-            scanActionButton:SetText("Scan AH (10s)")
+            scanActionButton:SetText("Scan AH")
             scanActionButton:SetBackdropBorderColor(1.0, 0.84, 0.0, 1.0)
-            scanCountdownLabel:SetText("")
+            local pacingTag = (curMode == "ADAPTIVE") and "⚡ Adaptive (5s->1s)" or string.format("%0.1fs Fixed", PUIMerchant:GetPacingDelay())
+            scanCountdownLabel:SetText(string.format("|cff888888Pacing: %s|r", pacingTag))
             scanStatusLabel:SetText(state.statusText or "Ready to scan")
 
             if stopScanBtn then
