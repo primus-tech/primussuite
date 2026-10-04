@@ -3,11 +3,15 @@
     Target: Vanilla WoW 1.12.1 / Turtle WoW (100% Feature Parity with TurtleRP IconTray + Primus Dark Glass UI)
 --]]
 
-local Primus = _G.Primus
-local PUIRoleplay = Primus.PUIRoleplay or {}
-Primus.PUIRoleplay = PUIRoleplay
+local _G = getglobals and getglobals() or _G or getfenv(0)
+local Primus = _G.Primus or Primus
+if not Primus then return end
 
-local Tray = {}
+local PUIRoleplay = Primus.PUIRoleplay or Primus.Roleplay or {}
+Primus.PUIRoleplay = PUIRoleplay
+Primus.Roleplay = PUIRoleplay
+
+local Tray = PUIRoleplay.Tray or {}
 PUIRoleplay.Tray = Tray
 
 local trayFrame = nil
