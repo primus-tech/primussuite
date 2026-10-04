@@ -1,0 +1,14 @@
+# OS Files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*~
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Releases / Build Artifacts
+Release/
+dist/

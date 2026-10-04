@@ -1,0 +1,194 @@
+## Interface: 11200
+## Title: PrimusSuite
+## Notes: Modular, High-Performance Master UI Suite for Vanilla WoW 1.12.1
+## Author: Primus
+## Version: 1.0.0
+## SavedVariables: PrimusGlobalDB
+## SavedVariablesPerCharacter: PrimusCharDB
+
+# =========================================================================
+# CORE FOUNDATION & PLATFORM (PrimusCore)
+# =========================================================================
+Core\PrimusCore.xml
+
+# =========================================================================
+# UTILITY & META-UI MODULES (Tier 2 & 3)
+# =========================================================================
+Modules\Utility\PrimusDock\PrimusDock.lua
+Modules\Utility\PrimusFastLoot\PrimusFastLoot.lua
+Modules\Utility\PrimusAutoMechanics\PrimusAutoMechanics.lua
+Modules\Utility\PrimusItemCompare\PrimusItemCompare.lua
+Modules\Utility\PrimusMinimapper\PrimusMapCore.lua
+Modules\Utility\PrimusMinimapper\PrimusZoneHeader.lua
+Modules\Utility\PrimusMinimapper\PrimusCoordinates.lua
+Modules\Utility\PrimusMinimapper\PrimusSideDock.lua
+Modules\Utility\PrimusMinimapper\PrimusMinimapper.lua
+Modules\Utility\PrimusMinimapOrbit\PrimusMinimapOrbit.lua
+Modules\Utility\PrimusMailbox\PrimusMailbox.lua
+Modules\Utility\PrimusMerchant\PrimusMerchantData.lua
+Modules\Utility\PrimusMerchant\PrimusMerchantScan.lua
+Modules\Utility\PrimusMerchant\PrimusMerchantGraph.lua
+Modules\Utility\PrimusMerchant\PrimusMerchantSkin.lua
+Modules\Utility\PrimusMerchant\PrimusMerchantExplorer.lua
+Modules\Utility\PrimusMerchant\PrimusMerchant.lua
+Modules\Utility\PrimusInspect\PrimusInspect.lua
+Modules\Utility\PrimusLogViewer\PrimusLogViewer.lua
+
+# =========================================================================
+# GATHERING & PROFESSIONS (Tier 3)
+# =========================================================================
+Modules\Gathering\PrimusGathering\PrimusGathering.lua
+Modules\Professions\PrimusProfessions\PrimusProfessions.lua
+
+# =========================================================================
+# COMBAT & HUD ENGINES (Tier 2)
+# =========================================================================
+Modules\Combat\PrimusCombatLog\PrimusCombatLog.lua
+Modules\Combat\PrimusCombatAuras\PrimusCombatAuras.lua
+Modules\Combat\PrimusThreat\PrimusThreat.lua
+Modules\Combat\PrimusHealComm\PrimusHealComm.lua
+Modules\Combat\PrimusCastBar\PrimusCastBar.lua
+Modules\Combat\PrimusCooldowns\PrimusCooldowns.lua
+Modules\Combat\PrimusRange\PrimusRange.lua
+Modules\Combat\PrimusTactical\PrimusTactical.lua
+Modules\HUD\PrimusAuras\PrimusAuras.lua
+Modules\HUD\PrimusHud\PrimusWings.lua
+Modules\HUD\PrimusHud\PrimusMiniBars.lua
+Modules\HUD\PrimusHud\PrimusActiveAssist.lua
+Modules\HUD\PrimusHud\PrimusTimers.lua
+Modules\HUD\PrimusHud\PrimusTriage.lua
+Modules\HUD\PrimusHud\PrimusHud.lua
+
+# =========================================================================
+# UNIT FRAME PRIMITIVES & SUITE (Tier 2 & 3)
+# =========================================================================
+Modules\Units\PrimusUnitBase\PrimusUnitBase.lua
+Modules\Units\PrimusUnitFrames\PrimusUnitFrames.lua
+
+# =========================================================================
+# ACTION BARS & PRIMUSHOTBARS (Tier 2)
+# =========================================================================
+Modules\Bars\PrimusHotbars\PrimusButtons.lua
+Modules\Bars\PrimusHotbars\PrimusXPBar.lua
+Modules\Bars\PrimusHotbars\PrimusMicroBags.lua
+Modules\Bars\PrimusHotbars\PrimusHotbars.lua
+
+# =========================================================================
+# PLAYER & CHARACTER MODULES (Tier 3)
+# =========================================================================
+Modules\Player\PrimusBags\PrimusCategories.lua
+Modules\Player\PrimusBags\PrimusSort.lua
+Modules\Player\PrimusBags\PrimusBags.lua
+Modules\Player\PrimusBank\PrimusBank.lua
+Modules\Player\PrimusCharacterSheet\PrimusCharacterSheet.lua
+Modules\Player\PrimusItemStats\PrimusItemStats.lua
+Modules\Player\PrimusVendor\PrimusVendor.lua
+Modules\Player\PrimusSellValue\PrimusSellValueData.lua
+Modules\Player\PrimusSellValue\PrimusSellValue.lua
+Modules\Player\PrimusReagents\PrimusReagents.lua
+Modules\Player\PrimusTalents\PrimusTalents.lua
+Modules\Player\PrimusSpellbook\PrimusSpellbook.lua
+Modules\Player\PrimusQuestWatch\PrimusQuestWatch.lua
+Modules\Player\PrimusQuest\DB\init.lua
+Modules\Player\PrimusQuest\DB\items.lua
+Modules\Player\PrimusQuest\DB\units.lua
+Modules\Player\PrimusQuest\DB\objects.lua
+Modules\Player\PrimusQuest\DB\quests.lua
+Modules\Player\PrimusQuest\DB\quests-itemreq.lua
+Modules\Player\PrimusQuest\DB\refloot.lua
+Modules\Player\PrimusQuest\DB\zones.lua
+Modules\Player\PrimusQuest\DB\minimap.lua
+Modules\Player\PrimusQuest\DB\areatrigger.lua
+Modules\Player\PrimusQuest\DB\meta.lua
+Modules\Player\PrimusQuest\DB\enUS\items.lua
+Modules\Player\PrimusQuest\DB\enUS\units.lua
+Modules\Player\PrimusQuest\DB\enUS\objects.lua
+Modules\Player\PrimusQuest\DB\enUS\quests.lua
+Modules\Player\PrimusQuest\DB\enUS\professions.lua
+Modules\Player\PrimusQuest\DB\enUS\zones.lua
+Modules\Player\PrimusQuest\DB-Turtle\items-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\units-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\objects-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\quests-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\quests-itemreq-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\refloot-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\zones-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\minimap-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\areatrigger-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\meta-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\items-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\units-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\objects-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\quests-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\professions-turtle.lua
+Modules\Player\PrimusQuest\DB-Turtle\enUS\zones-turtle.lua
+Modules\Player\PrimusQuest\Overwrites.lua
+Modules\Player\PrimusQuest\Patchtable.lua
+Modules\Player\PrimusQuest\Database.lua
+Modules\Player\PrimusQuest\Map.lua
+Modules\Player\PrimusQuest\Tracker.lua
+Modules\Player\PrimusQuest\Quest.lua
+Modules\Player\PrimusQuest\Browser.lua
+Modules\Player\PrimusQuest\PrimusQuest.lua
+
+# =========================================================================
+# SOCIAL & COMMUNICATION (Tier 3)
+# =========================================================================
+Modules\Social\PrimusTalk\PrimusTalkCore.lua
+Modules\Social\PrimusTalk\PrimusTalkFrame.lua
+Modules\Social\PrimusTalk\PrimusTalkInput.lua
+Modules\Social\PrimusTalk\PrimusTalkChat.lua
+Modules\Social\PrimusTalk\PrimusTalkChatEvents.lua
+Modules\Social\PrimusTalk\PrimusTalkFilterMenu.lua
+Modules\Social\PrimusTalk\PrimusTalkCopy.lua
+Modules\Social\PrimusTalk\PrimusTalkMessages.lua
+Modules\Social\PrimusTalk\PrimusTalkSocial.lua
+Modules\Social\PrimusTalk\PrimusTalkOptions.lua
+Modules\Social\PrimusTalk\PrimusTalk.lua
+Modules\Social\PrimusMasterLoot\PrimusMasterLoot.lua
+Modules\Social\PrimusRoleplay\PrimusConstants.lua
+Modules\Social\PrimusRoleplay\PrimusIcons.lua
+Modules\Social\PrimusRoleplay\PrimusProtocols.lua
+Modules\Social\PrimusRoleplay\PrimusComms.lua
+Modules\Social\PrimusRoleplay\PrimusIconPicker.lua
+Modules\Social\PrimusRoleplay\PrimusCardPreview.lua
+Modules\Social\PrimusRoleplay\PrimusRPWidgets.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabIdentity.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabAppearance.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabPersonality.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabLore.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabRules.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabMatchmaking.lua
+Modules\Social\PrimusRoleplay\PrimusRPTabSettings.lua
+Modules\Social\PrimusRoleplay\PrimusRPSheet.lua
+Modules\Social\PrimusRoleplay\PrimusGlance.lua
+Modules\Social\PrimusRoleplay\PrimusTooltip.lua
+Modules\Social\PrimusRoleplay\PrimusDirFlyout.lua
+Modules\Social\PrimusRoleplay\PrimusMapPins.lua
+Modules\Social\PrimusRoleplay\PrimusDirectory.lua
+Modules\Social\PrimusRoleplay\PrimusEmotes.lua
+Modules\Social\PrimusRoleplay\PrimusListener.lua
+Modules\Social\PrimusRoleplay\PrimusElephant.lua
+Modules\Social\PrimusRoleplay\PrimusDice.lua
+Modules\Social\PrimusRoleplay\PrimusExtended.lua
+Modules\Social\PrimusRoleplay\PrimusImporter.lua
+Modules\Social\PrimusRoleplay\PrimusTray.lua
+Modules\Social\PrimusRoleplay\PrimusRoleplay.lua
+
+# =========================================================================
+# CLASS NUANCE SUITE (Tier 3)
+# =========================================================================
+Modules\Classes\PrimusRogue\PrimusRogue.lua
+Modules\Classes\PrimusPriest\PrimusPriest.lua
+Modules\Classes\PrimusHunter\PrimusHunter.lua
+Modules\Classes\PrimusShaman\PrimusShaman.lua
+Modules\Classes\PrimusPaladin\PrimusPaladin.lua
+Modules\Classes\PrimusWarrior\PrimusWarrior.lua
+Modules\Classes\PrimusDruid\PrimusDruid.lua
+Modules\Classes\PrimusWarlock\PrimusWarlock.lua
+Modules\Classes\PrimusMage\PrimusMage.lua
+
+# =========================================================================
+# MASTER ANCHOR ENTRY
+# =========================================================================
+PrimusSuite.lua

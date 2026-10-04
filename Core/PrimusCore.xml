@@ -1,0 +1,50 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <!-- PrimusCore Master Foundation Manifest -->
+    <!-- Tier 1: Bootstrap, Memory, Debug, Time & Events -->
+    <Script file="Bootstrap\Bootstrap.lua"/>
+    <Script file="Utils\Utils.lua"/>
+    <Script file="Utils\Items.lua"/>
+    <Script file="Memory\Memory.lua"/>
+    <Script file="Debug\Debug.lua"/>
+    <Script file="Time\Time.lua"/>
+    <Script file="Events\Events.lua"/>
+
+    <!-- Tier 1: Database & Base Price Tables -->
+    <Script file="DB\DB.lua"/>
+    <Script file="DB\VanillaItemPrices.lua"/>
+    <Script file="DB\BasePriceDB.lua"/>
+
+    <!-- Tier 1: Media, Skinner & Widgets -->
+    <Script file="Media\Media.lua"/>
+    <Script file="Media\Audio.lua"/>
+    <Script file="Skinner\Skinner.lua"/>
+    <Script file="Anim\Anim.lua"/>
+    <Script file="Widgets\Widgets.lua"/>
+    <Script file="Widgets\ContextMenu.lua"/>
+
+    <!-- Tier 1: Input, Console, & Addon Communications -->
+    <Script file="Keybind\Keybind.lua"/>
+    <Script file="Console\Console.lua"/>
+    <Script file="Comm\ChatThrottleLib.lua"/>
+    <Script file="Comm\Comm.lua"/>
+
+    <!-- Tier 1: State & Hider Engines -->
+    <Script file="Auras\Auras.lua"/>
+    <Script file="Chat\Chat.lua"/>
+    <Script file="State\State.lua"/>
+    <Script file="Hider\Hider.lua"/>
+
+    <!-- Tier 2: Universal Mover, Map & Tooltip Foundation -->
+    <Script file="Mover\Mover.lua"/>
+    <Script file="Map\Map.lua"/>
+    <Script file="Tooltip\TooltipConstants.lua"/>
+    <Script file="Tooltip\TooltipSkin.lua"/>
+    <Script file="Tooltip\TooltipAnchor.lua"/>
+    <Script file="Tooltip\TooltipUnit.lua"/>
+    <Script file="Tooltip\TooltipItem.lua"/>
+    <Script file="Tooltip\TooltipScanner.lua"/>
+    <Script file="Tooltip\Tooltip.lua"/>
+
+    <!-- Tier 2: Master Options Registry -->
+    <Script file="Config\Options.lua"/>
+</Ui>
