@@ -63,10 +63,20 @@ function PUITalk:OnInitialize()
 end
 
 function PUITalk:OnEnable()
+    self:CreateMasterFrame()
+    if self.masterFrame then
+        self.masterFrame:Show()
+        self:SelectMasterTab(self.db and self.db:Get("activeMasterTab") or 1)
+    end
     self:SuppressBlizzardChat()
 
     -- Social & Class Cache Update Events
     Events:Register("PLAYER_ENTERING_WORLD", "PUITalk", function()
+        PUITalk:CreateMasterFrame()
+        if PUITalk.masterFrame then
+            PUITalk.masterFrame:Show()
+            PUITalk:SelectMasterTab(PUITalk.db and PUITalk.db:Get("activeMasterTab") or 1)
+        end
         PUITalk:SuppressBlizzardChat()
         PUITalk:UpdateClassCache()
     end)
@@ -107,5 +117,8 @@ function PUITalk:OnDisable()
 
     if self.masterFrame and self.masterFrame:IsShown() then
         self.masterFrame:Hide()
+    end
+    if self.RestoreBlizzardChat then
+        self:RestoreBlizzardChat()
     end
 end

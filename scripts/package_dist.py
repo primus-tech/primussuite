@@ -237,14 +237,14 @@ def build_standalone_talk(target_dir):
     src_mod = os.path.join(REPO_ROOT, "Modules", "Social", "PrimusTalk")
     files = [
         "PrimusTalkCore.lua",
-        "PrimusTalkFrame.lua",
-        "PrimusTalkInput.lua",
         "PrimusTalkChat.lua",
         "PrimusTalkChatEvents.lua",
-        "PrimusTalkFilterMenu.lua",
-        "PrimusTalkCopy.lua",
         "PrimusTalkMessages.lua",
         "PrimusTalkSocial.lua",
+        "PrimusTalkInput.lua",
+        "PrimusTalkFilterMenu.lua",
+        "PrimusTalkCopy.lua",
+        "PrimusTalkFrame.lua",
         "PrimusTalkOptions.lua",
         "PrimusTalk.lua",
     ]
@@ -261,14 +261,14 @@ def build_standalone_talk(target_dir):
 
 Libs\\PrimusCore\\Core\\PrimusCore.xml
 PrimusTalkCore.lua
-PrimusTalkFrame.lua
-PrimusTalkInput.lua
 PrimusTalkChat.lua
 PrimusTalkChatEvents.lua
-PrimusTalkFilterMenu.lua
-PrimusTalkCopy.lua
 PrimusTalkMessages.lua
 PrimusTalkSocial.lua
+PrimusTalkInput.lua
+PrimusTalkFilterMenu.lua
+PrimusTalkCopy.lua
+PrimusTalkFrame.lua
 PrimusTalkOptions.lua
 PrimusTalk.lua
 """

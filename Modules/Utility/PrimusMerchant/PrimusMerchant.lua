@@ -90,22 +90,23 @@ function PUIMerchant:UpdateAuctionAutoPricing()
 end
 
 local function HookAuctionsTab()
-    if not AuctionsItemButton or AuctionsItemButton.primusHooked then return end
+    local btn = _G.AuctionsItemButton or AuctionsItemButton
+    if not btn or btn.primusHooked then return end
 
     -- Hook Sell Slot Script
-    local origOnClick = AuctionsItemButton:GetScript("OnClick")
-    AuctionsItemButton:SetScript("OnClick", function()
+    local origOnClick = btn:GetScript("OnClick")
+    btn:SetScript("OnClick", function()
         if origOnClick then origOnClick() end
         PUIMerchant:UpdateAuctionAutoPricing()
     end)
 
-    local origOnDrag = AuctionsItemButton:GetScript("OnReceiveDrag")
-    AuctionsItemButton:SetScript("OnReceiveDrag", function()
+    local origOnDrag = btn:GetScript("OnReceiveDrag")
+    btn:SetScript("OnReceiveDrag", function()
         if origOnDrag then origOnDrag() end
         PUIMerchant:UpdateAuctionAutoPricing()
     end)
 
-    AuctionsItemButton.primusHooked = true
+    btn.primusHooked = true
 end
 
 -- =========================================================================
@@ -341,11 +342,16 @@ function PUIMerchant:OnEnable()
 
     -- Hook AH Frame Show to apply skin, dock flyout, and hook rows
     Events:Register("AUCTION_HOUSE_SHOW", "PUIMerchant", function()
-        PUIMerchant:SkinAuctionHouse()
-        PUIMerchant:CreateFlyoutDrawer()
-        HookBrowseRows()
-        HookAuctionsTab()
-        PUIMerchant:UpdateBrowsePrices()
+        if not _G.AuctionFrame and type(_G.AuctionFrame_LoadUI) == "function" then
+            _G.AuctionFrame_LoadUI()
+        end
+        if _G.AuctionFrame then
+            PUIMerchant:SkinAuctionHouse()
+            PUIMerchant:CreateFlyoutDrawer()
+            HookBrowseRows()
+            HookAuctionsTab()
+            PUIMerchant:UpdateBrowsePrices()
+        end
     end)
 
     Events:Register("AUCTION_ITEM_LIST_UPDATE", "PUIMerchant", function()

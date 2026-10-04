@@ -135,14 +135,14 @@ Modules\Player\PrimusQuest\PrimusQuest.lua
 # SOCIAL & COMMUNICATION (Tier 3)
 # =========================================================================
 Modules\Social\PrimusTalk\PrimusTalkCore.lua
-Modules\Social\PrimusTalk\PrimusTalkFrame.lua
-Modules\Social\PrimusTalk\PrimusTalkInput.lua
 Modules\Social\PrimusTalk\PrimusTalkChat.lua
 Modules\Social\PrimusTalk\PrimusTalkChatEvents.lua
-Modules\Social\PrimusTalk\PrimusTalkFilterMenu.lua
-Modules\Social\PrimusTalk\PrimusTalkCopy.lua
 Modules\Social\PrimusTalk\PrimusTalkMessages.lua
 Modules\Social\PrimusTalk\PrimusTalkSocial.lua
+Modules\Social\PrimusTalk\PrimusTalkInput.lua
+Modules\Social\PrimusTalk\PrimusTalkFilterMenu.lua
+Modules\Social\PrimusTalk\PrimusTalkCopy.lua
+Modules\Social\PrimusTalk\PrimusTalkFrame.lua
 Modules\Social\PrimusTalk\PrimusTalkOptions.lua
 Modules\Social\PrimusTalk\PrimusTalk.lua
 Modules\Social\PrimusMasterLoot\PrimusMasterLoot.lua
