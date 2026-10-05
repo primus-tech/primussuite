@@ -40,20 +40,28 @@ local tooltipsToSkin = {
 function Skin:ApplyBackdrop(tooltip)
     if not tooltip then return end
     
+    local Skinner = Primus.Skinner
     local bd = Media and Media:Fetch("border", "1Pixel") or {
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
         tile = false, tileSize = 0, edgeSize = 1,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
     }
+    local r, g, b, a = C.DefaultBackdrop.r, C.DefaultBackdrop.g, C.DefaultBackdrop.b, C.DefaultBackdrop.a
+    local br, bg, bb, ba = C.DefaultBackdrop.borderR, C.DefaultBackdrop.borderG, C.DefaultBackdrop.borderB, C.DefaultBackdrop.borderA
+
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+    
+    local settings = PUITooltip:GetSettings()
+    local alpha = settings.backdropAlpha or a
     
     tooltip:SetBackdrop(bd)
-    local def = C.DefaultBackdrop
-    local settings = PUITooltip:GetSettings()
-    local alpha = settings.backdropAlpha or def.a
-    
-    tooltip:SetBackdropColor(def.r, def.g, def.b, alpha)
-    tooltip:SetBackdropBorderColor(def.borderR, def.borderG, def.borderB, def.borderA)
+    tooltip:SetBackdropColor(r, g, b, alpha)
+    tooltip:SetBackdropBorderColor(br, bg, bb, ba)
 end
 
 --------------------------------------------------------------------------------
@@ -61,8 +69,24 @@ end
 --------------------------------------------------------------------------------
 function Skin:ResetBorderColor(tooltip)
     if not tooltip then return end
-    local def = C.DefaultBackdrop
-    tooltip:SetBackdropBorderColor(def.borderR, def.borderG, def.borderB, def.borderA)
+    local Skinner = Primus.Skinner
+    local br, bg, bb, ba = C.DefaultBackdrop.borderR, C.DefaultBackdrop.borderG, C.DefaultBackdrop.borderB, C.DefaultBackdrop.borderA
+    if Skinner and Skinner.GetBorderColor then
+        br, bg, bb, ba = Skinner:GetBorderColor()
+    end
+    tooltip:SetBackdropBorderColor(br, bg, bb, ba)
+end
+
+--------------------------------------------------------------------------------
+-- Repaint All Open Tooltips on Theme Change
+--------------------------------------------------------------------------------
+function Skin:RepaintAll()
+    for _, name in ipairs(tooltipsToSkin) do
+        local tt = _G[name]
+        if tt and tt:IsShown() then
+            self:ApplyBackdrop(tt)
+        end
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -152,4 +176,10 @@ function Skin:Initialize()
     end
     
     self:StyleStatusBar()
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("TooltipSkin", function()
+            Skin:RepaintAll()
+        end)
+    end
 end

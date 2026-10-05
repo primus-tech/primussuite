@@ -457,6 +457,14 @@ function Options:SelectModule(id)
     self:RefreshModuleList()
 end
 
+function Options:RefreshActivePanel()
+    if cachedPanels[activeModuleId] then
+        cachedPanels[activeModuleId]:Hide()
+        cachedPanels[activeModuleId] = nil
+    end
+    self:SelectModule(activeModuleId)
+end
+
 function Options:ClearCanvas()
     for panelId, panel in pairs(cachedPanels) do
         panel:Hide()
@@ -506,14 +514,32 @@ end
 
 function Options:RefreshCategoryTabs()
     if not optionsFrame or not optionsFrame.categoryTabs then return end
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.09, 0.85
+    local br, bg, bb, ba = 0.20, 0.20, 0.25, 0.8
+    local ar, ag, ab, aa = 0.20, 0.75, 1.00, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel")
+
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        ar, ag, ab, aa = Skinner:GetAccentColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+
+    local function Clamp(v)
+        if v > 1.0 then return 1.0 elseif v < 0.0 then return 0.0 else return v end
+    end
+
     for _, tab in ipairs(optionsFrame.categoryTabs) do
+        tab:SetBackdrop(bd)
         if tab.catId == selectedCategory then
-            tab:SetBackdropColor(0.18, 0.32, 0.55, 1.0)
-            tab:SetBackdropBorderColor(0.35, 0.75, 1.0, 1.0)
-            tab.label:SetTextColor(1.0, 1.0, 1.0)
+            tab:SetBackdropColor(Clamp(r + 0.12), Clamp(g + 0.12), Clamp(b + 0.16), 1.0)
+            tab:SetBackdropBorderColor(ar, ag, ab, 1.0)
+            tab.label:SetTextColor(ar, ag, ab)
         else
-            tab:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
-            tab:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+            tab:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.85)
+            tab:SetBackdropBorderColor(br, bg, bb, 0.7)
             tab.label:SetTextColor(0.70, 0.75, 0.85)
         end
     end
@@ -542,6 +568,23 @@ function Options:RefreshModuleList()
     local rowHeight = 24
     local spacing = 2
 
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.09, 0.85
+    local br, bg, bb, ba = 0.20, 0.20, 0.25, 0.8
+    local ar, ag, ab, aa = 0.20, 0.75, 1.00, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel")
+
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        ar, ag, ab, aa = Skinner:GetAccentColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+
+    local function Clamp(v)
+        if v > 1.0 then return 1.0 elseif v < 0.0 then return 0.0 else return v end
+    end
+
     for i = 1, count do
         local flare = visibleFlares[i]
         local cleanName = GetCleanModuleName(flare)
@@ -550,9 +593,9 @@ function Options:RefreshModuleList()
             row = CreateFrame("Frame", nil, parent)
             row:SetWidth(186)
             row:SetHeight(rowHeight)
-            row:SetBackdrop(Media:Fetch("border", "1Pixel"))
-            row:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
-            row:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+            row:SetBackdrop(bd)
+            row:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.85)
+            row:SetBackdropBorderColor(br, bg, bb, 0.7)
 
             -- Enable Checkbox
             local cb = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
@@ -580,6 +623,7 @@ function Options:RefreshModuleList()
             moduleRows[i] = row
         end
 
+        row:SetBackdrop(bd)
         row:SetPoint("TOPLEFT", parent, "TOPLEFT", 2, -(i - 1) * (rowHeight + spacing) - 2)
         row.moduleId = flare.id
         row.flare = flare
@@ -628,12 +672,12 @@ function Options:RefreshModuleList()
 
         -- Selection Highlight
         if flare.id == activeModuleId then
-            row:SetBackdropColor(0.18, 0.30, 0.50, 1.0)
-            row:SetBackdropBorderColor(0.35, 0.75, 1.00, 1.0)
-            row.btn.title:SetTextColor(1.0, 1.0, 1.0)
+            row:SetBackdropColor(Clamp(r + 0.12), Clamp(g + 0.12), Clamp(b + 0.16), 1.0)
+            row:SetBackdropBorderColor(ar, ag, ab, 1.0)
+            row.btn.title:SetTextColor(ar, ag, ab)
         else
-            row:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
-            row:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+            row:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.85)
+            row:SetBackdropBorderColor(br, bg, bb, 0.7)
             row.btn.title:SetTextColor(0.82, 0.85, 0.90)
         end
 
@@ -646,8 +690,8 @@ function Options:RefreshModuleList()
             local f = this.flare
             if not f then return end
             if f.id ~= activeModuleId then
-                this.parentRow:SetBackdropColor(0.14, 0.18, 0.26, 0.95)
-                this.parentRow:SetBackdropBorderColor(0.35, 0.50, 0.75, 0.95)
+                this.parentRow:SetBackdropColor(Clamp(r + 0.08), Clamp(g + 0.08), Clamp(b + 0.12), 0.95)
+                this.parentRow:SetBackdropBorderColor(ar, ag, ab, 0.8)
             end
 
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT", 4, 0)
@@ -676,9 +720,11 @@ function Options:RefreshModuleList()
         row.btn:SetScript("OnLeave", function()
             local f = this.flare
             if f and f.id ~= activeModuleId then
-                this.parentRow:SetBackdropColor(0.08, 0.10, 0.14, 0.85)
-                this.parentRow:SetBackdropBorderColor(0.20, 0.25, 0.35, 0.8)
+                this.parentRow:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.85)
+                this.parentRow:SetBackdropBorderColor(br, bg, bb, 0.7)
             end
+            GameTooltip:Hide()
+        end)
             GameTooltip:Hide()
         end)
 
@@ -1097,17 +1143,26 @@ function Options:CreateGUI()
     canvasScroll:SetScrollChild(canvasScrollChild)
     optionsFrame.canvasScrollChild = canvasScrollChild
 
+    optionsFrame.header = header
+    optionsFrame.topCategoryBar = topCategoryBar
+    optionsFrame.sidebar = sidebar
+    optionsFrame.profileSec = profileSec
+    optionsFrame.rightContainer = rightContainer
+    optionsFrame.banner = banner
+
     -- Initial synchronization
     RefreshProfileSelector(profSelector, profEdit)
     Options:RefreshCategoryTabs()
     Options:RefreshModuleList()
     Options:SelectModule("System")
+    Options:Repaint()
 
     optionsFrame:SetScript("OnShow", function()
         RefreshProfileSelector(profSelector, profEdit)
         Options:RefreshCategoryTabs()
         Options:RefreshModuleList()
         Options:SelectModule(activeModuleId or "System")
+        Options:Repaint()
     end)
 
     local mover = Primus.PUIMover or PUIMover or _G.PUIMover
@@ -1118,9 +1173,80 @@ function Options:CreateGUI()
     return optionsFrame
 end
 
+function Options:Repaint()
+    if not optionsFrame then return end
+
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.09, 0.98
+    local br, bg, bb, ba = 0.20, 0.20, 0.25, 1.0
+    local ar, ag, ab, aa = 0.20, 0.75, 1.00, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel")
+
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        ar, ag, ab, aa = Skinner:GetAccentColor()
+        bd = Skinner:GetBackdropDescriptor()
+    end
+
+    local function Clamp(v)
+        if v > 1.0 then return 1.0 elseif v < 0.0 then return 0.0 else return v end
+    end
+
+    optionsFrame:SetBackdrop(bd)
+    optionsFrame:SetBackdropColor(r, g, b, a)
+    optionsFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    if optionsFrame.header then
+        optionsFrame.header:SetBackdrop(bd)
+        optionsFrame.header:SetBackdropColor(Clamp(r + 0.04), Clamp(g + 0.04), Clamp(b + 0.06), 1.0)
+        optionsFrame.header:SetBackdropBorderColor(ar, ag, ab, 0.8)
+    end
+
+    if optionsFrame.topCategoryBar then
+        optionsFrame.topCategoryBar:SetBackdrop(bd)
+        optionsFrame.topCategoryBar:SetBackdropColor(Clamp(r - 0.02), Clamp(g - 0.02), Clamp(b - 0.02), 0.95)
+        optionsFrame.topCategoryBar:SetBackdropBorderColor(br, bg, bb, 0.6)
+    end
+
+    if optionsFrame.sidebar then
+        optionsFrame.sidebar:SetBackdrop(bd)
+        optionsFrame.sidebar:SetBackdropColor(Clamp(r - 0.02), Clamp(g - 0.02), Clamp(b - 0.02), 0.95)
+        optionsFrame.sidebar:SetBackdropBorderColor(br, bg, bb, 0.6)
+    end
+
+    if optionsFrame.profileSec then
+        optionsFrame.profileSec:SetBackdrop(bd)
+        optionsFrame.profileSec:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.9)
+        optionsFrame.profileSec:SetBackdropBorderColor(br, bg, bb, 0.7)
+    end
+
+    if optionsFrame.rightContainer then
+        optionsFrame.rightContainer:SetBackdrop(bd)
+        optionsFrame.rightContainer:SetBackdropColor(Clamp(r - 0.02), Clamp(g - 0.02), Clamp(b - 0.02), 0.95)
+        optionsFrame.rightContainer:SetBackdropBorderColor(br, bg, bb, 0.6)
+    end
+
+    if optionsFrame.banner then
+        optionsFrame.banner:SetBackdrop(bd)
+        optionsFrame.banner:SetBackdropColor(Clamp(r + 0.03), Clamp(g + 0.05), Clamp(b + 0.08), 1.0)
+        optionsFrame.banner:SetBackdropBorderColor(ar, ag, ab, 0.8)
+    end
+
+    Options:RefreshCategoryTabs()
+    Options:RefreshModuleList()
+
+    if optionsFrame:IsShown() and cachedPanels[activeModuleId] then
+        cachedPanels[activeModuleId]:Hide()
+        cachedPanels[activeModuleId] = nil
+        Options:SelectModule(activeModuleId)
+    end
+end
+
 function Options:Show()
     self:CreateGUI()
     if optionsFrame then
+        Options:Repaint()
         optionsFrame:Show()
         optionsFrame:Raise()
     end
@@ -1137,6 +1263,7 @@ function Options:Toggle()
     if optionsFrame:IsShown() then
         optionsFrame:Hide()
     else
+        Options:Repaint()
         optionsFrame:Show()
         optionsFrame:Raise()
     end
@@ -1205,6 +1332,13 @@ function Options:OnInitialize()
     Events:Register("PLAYER_ENTERING_WORLD", self, function()
         SetupGameMenuButton()
     end)
+
+    -- Register repaint listener with Skinner
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("OptionsGUI", function()
+            Options:Repaint()
+        end)
+    end
 
     -- Register console commands /primus config, /pui config, /primus gui, /pui gui
     local Console = Primus.Console

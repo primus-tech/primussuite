@@ -896,6 +896,14 @@ function PUIHotbars:OnInitialize()
             end
         end, "PUI HotBars action bar management (/pui hotbars [unlock|lock|reset])")
     end
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIHotbars", function()
+            if PUIHotbars.RepaintAllButtons then
+                PUIHotbars:RepaintAllButtons()
+            end
+        end)
+    end
 end
 
 function PUIHotbars:OnEnable()

@@ -489,9 +489,19 @@ function PUIUnitFrames:CreateRaidGrid()
         local btn = CreateFrame("Button", "Primus_RaidUnit_" .. i, raidHeader)
         btn:SetWidth(58)
         btn:SetHeight(32)
-        btn:SetBackdrop(Media:Fetch("border", "1Pixel"))
-        btn:SetBackdropColor(0.08, 0.08, 0.10, 0.95)
-        btn:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+
+        local Skinner = Primus.Skinner
+        local r, g, b, a = 0.08, 0.08, 0.10, 0.95
+        local br, bg, bb, ba = 0.20, 0.20, 0.25, 1.0
+        local bd = Media:Fetch("border", "1Pixel")
+        if Skinner and Skinner.GetBackdropColor then
+            r, g, b, a = Skinner:GetBackdropColor()
+            br, bg, bb, ba = Skinner:GetBorderColor()
+            bd = Skinner:GetBackdropDescriptor("1Pixel")
+        end
+        btn:SetBackdrop(bd)
+        btn:SetBackdropColor(r, g, b, a)
+        btn:SetBackdropBorderColor(br, bg, bb, ba)
         btn.unit = unit
 
         local health = Widgets:CreateStatusBar(btn, 54, 22, 0, 100)
@@ -599,7 +609,13 @@ function PUIUnitFrames:CreateRaidGrid()
                 local dc = DEBUFF_COLORS[foundDebuffType]
                 if dc then self:SetBackdropBorderColor(dc.r, dc.g, dc.b, 1.0) end
             else
-                self:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+                local Skinner = Primus.Skinner
+                if Skinner and Skinner.GetBorderColor then
+                    local br, bg, bb, ba = Skinner:GetBorderColor()
+                    self:SetBackdropBorderColor(br, bg, bb, ba)
+                else
+                    self:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+                end
             end
 
             -- Range Fading (40yd spell check)
@@ -844,7 +860,29 @@ function PUIUnitFrames:OnEnable()
         PUIUnitFrames:UpdateAll()
     end, "PUIUnitFrames")
 
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIUnitFrames", function()
+            PUIUnitFrames:RepaintAll()
+        end)
+    end
+
     self:UpdateAll()
+end
+
+function PUIUnitFrames:RepaintAll()
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+    for i = 1, 40 do
+        local btn = raidFrames[i]
+        if btn and btn.SetBackdrop then
+            btn:SetBackdrop(bd)
+            btn:SetBackdropColor(r, g, b, a)
+            btn:SetBackdropBorderColor(br, bg, bb, ba)
+        end
+    end
 end
 
 function PUIUnitFrames:OnDisable()

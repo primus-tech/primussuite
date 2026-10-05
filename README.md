@@ -10,7 +10,7 @@
 ## 📑 Master Table of Contents
 1. [Executive Summary & Architectural Law (TRUTH)](#1-executive-summary--architectural-law-truth)
 2. [Canonical Module Catalogue (All 35 Modules Across 5 Tiers)](#2-canonical-module-catalogue-all-35-modules-across-5-tiers)
-3. [The 7 Centralized Core Services](#3-the-7-centralized-core-services)
+3. [The 8 Centralized Core Services](#3-the-8-centralized-core-services)
 4. [PUIRoleplay: 28-File Roleplaying & Tabletop Subsystem](#4-puiroleplay-28-file-roleplaying--tabletop-subsystem)
 5. [Combat, HUD & Action Bar Innovations](#5-combat-hud--action-bar-innovations)
 6. [World, Inventory & Database Engines](#6-world-inventory--database-engines)
@@ -22,7 +22,7 @@
 
 ## 1. Executive Summary & Architectural Law (TRUTH)
 
-Primus is a high-performance, modular user interface and ecosystem engineered specifically for the **Vanilla WoW 1.12.1** client. It replaces the fragmented, high-overhead legacy addon ecosystem with a unified, high-performance architecture characterized by rich dark glassmorphism, 1-pixel borders, flat status textures, and zero garbage collection churn.
+Primus is a high-performance, modular user interface, skinnable theming engine, and ecosystem engineered specifically for the **Vanilla WoW 1.12.1** client. It replaces the fragmented, high-overhead legacy addon ecosystem with a unified, high-performance architecture characterized by universal skinnability, live in-memory dynamic theming (*Dark Glass*, *Onyx Gold*, *Void Purple*, *Midnight Navy*, *Minimal Matte*), 1-pixel borders, flat status textures, and zero garbage collection churn.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -178,9 +178,9 @@ PrimusUI/
 
 ---
 
-## 3. The 7 Centralized Core Services
+## 3. The 8 Centralized Core Services
 
-To eliminate cross-module code duplication, frame fighting, and GC stutter, PrimusUI centralizes seven core operational domains into dedicated single-owner engines:
+To eliminate cross-module code duplication, frame fighting, and GC stutter, PrimusUI centralizes eight core operational domains into dedicated single-owner engines:
 
 ```mermaid
 graph TD
@@ -192,6 +192,7 @@ graph TD
         E[Primus.Items] --> E1[Single-Call Item Link / ID / Price Resolver]
         F[Primus.Audio] --> F1[100ms Throttled Sound FX Governor]
         G[Primus.Widgets] --> G1[1px Dark Glass Context Menu Framework]
+        H[Primus.Skinner] --> H1[Universal Theming, Frame/Widget Skinning & Dynamic Live Repainting]
     end
 ```
 
@@ -226,6 +227,11 @@ graph TD
 7. **📑 Context Menu Framework ([`Core/Widgets/ContextMenu.lua`](file:///home/primustech/Downloads/OctoWoW/Interface/AddOns/PrimusUI/Core/Widgets/ContextMenu.lua)):**
    - 1-pixel dark glass popup menu with headers, icons, checkmarks, separators, subtitles, and outside-click auto-dismissal. Eliminates Blizzard `UIDropDownMenu` taint.
    - Consumers: `PUIXPBar` (Factions), `PUISpellbook` (Spell ranks), `PUIDirectory` (Right-click player actions).
+
+8. **🎨 Universal Window, Widget & Theme Skinning Engine ([`Core/Skinner/Skinner.lua`](file:///home/primustech/Downloads/OctoWoW/Interface/AddOns/PrimusUI/Core/Skinner/Skinner.lua)):**
+   - Universal atomic skinning pipeline (`SkinFrame`, `SkinButton`, `SkinTab`, `SkinEditBox`, `SkinScrollBar`, `SkinCheckBox`, `SkinCloseButton`) enforcing consistent borders, backdrops, and accent styling.
+   - Dynamic live in-memory repainting (`RepaintAll`), curated theme palettes (*Dark Glass*, *Onyx Gold*, *Void Purple*, *Midnight Navy*, *Minimal Matte*), and import/export theme strings without requiring client `/reload`.
+   - Consumers: `Primus.Widgets`, `Primus.Options`, `PUITooltip`, `PUIMerchant`, `PUIRoleplay`, `PUITalk`, and Blizzard UI Frames.
 
 ---
 

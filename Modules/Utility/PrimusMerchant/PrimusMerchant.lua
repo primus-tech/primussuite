@@ -480,6 +480,12 @@ function PUIMerchant:OnInitialize()
             end
         end, "PUIMerchant Offline Market Explorer (/pui market [itemName|deals])")
     end
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIMerchant", function()
+            PUIMerchant:Repaint()
+        end)
+    end
 end
 
 function PUIMerchant:OnEnable()
@@ -539,5 +545,27 @@ function PUIMerchant:OnDisable()
     local Tooltip = Primus.PUITooltip
     if Tooltip and Tooltip.UnregisterItemProvider then
         Tooltip:UnregisterItemProvider("PUIMerchant")
+    end
+end
+
+function PUIMerchant:Repaint()
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    local explorer = _G["PUIMerchantMarketExplorerFrame"]
+    if explorer and explorer.SetBackdrop then
+        explorer:SetBackdrop(bd)
+        explorer:SetBackdropColor(r, g, b, a)
+        explorer:SetBackdropBorderColor(br, bg, bb, ba)
+    end
+
+    local flyout = _G["PUIMerchantFlyoutDrawer"]
+    if flyout and flyout.SetBackdrop then
+        flyout:SetBackdrop(bd)
+        flyout:SetBackdropColor(r, g, b, a)
+        flyout:SetBackdropBorderColor(br, bg, bb, ba)
     end
 end

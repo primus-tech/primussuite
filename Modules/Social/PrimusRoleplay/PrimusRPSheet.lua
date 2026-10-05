@@ -44,14 +44,24 @@ function Sheet:BuildFrame()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function() this:StartMoving() end)
     f:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-    f:SetBackdrop({
+    
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.07, 0.07, 0.09, 0.96
+    local br, bg, bb, ba = 0.22, 0.22, 0.26, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel") or {
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        tile = false, tileSize = 0, edgeSize = 1,
-        insets = { left = 1, right = 1, top = 1, bottom = 1 }
-    })
-    f:SetBackdropColor(0.07, 0.07, 0.09, 0.96)
-    f:SetBackdropBorderColor(0.22, 0.22, 0.26, 1.0)
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    }
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+    f:SetBackdrop(bd)
+    f:SetBackdropColor(r, g, b, a)
+    f:SetBackdropBorderColor(br, bg, bb, ba)
     table.insert(UISpecialFrames, "Primus_PUIRoleplay_Sheet")
 
     -- Title Bar / Header
@@ -295,14 +305,24 @@ function Sheet:SelectTab(index)
     activeTab = index
     local f = self:BuildFrame()
 
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.09, 0.9
+    local br, bg, bb, ba = 0.25, 0.25, 0.30, 1.0
+    local ar, ag, ab, aa = 0.0, 0.85, 1.0, 1.0
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        ar, ag, ab, aa = Skinner:GetAccentColor()
+    end
+
     for i = 1, 7 do
         if i == index then
-            f.tabs[i]:SetBackdropColor(0.18, 0.18, 0.24, 1.0)
-            f.tabs[i]:SetBackdropBorderColor(0.0, 0.85, 1.0, 1.0)
+            f.tabs[i]:SetBackdropColor(r + 0.12, g + 0.12, b + 0.15, 1.0)
+            f.tabs[i]:SetBackdropBorderColor(ar, ag, ab, 1.0)
             f.tabs[i].text:SetTextColor(1.0, 1.0, 1.0)
         else
-            f.tabs[i]:SetBackdropColor(0.06, 0.06, 0.09, 0.9)
-            f.tabs[i]:SetBackdropBorderColor(0.25, 0.25, 0.30, 1.0)
+            f.tabs[i]:SetBackdropColor(r, g, b, 0.9)
+            f.tabs[i]:SetBackdropBorderColor(br, bg, bb, 1.0)
             f.tabs[i].text:SetTextColor(0.85, 0.85, 0.90)
         end
     end
@@ -558,5 +578,28 @@ function PUIRoleplay:OpenProfile(playerName)
         PUIRoleplay.Comms:SendRequest("D", targetPlayerName)
         PUIRoleplay.Comms:SendRequest("L", targetPlayerName)
         PUIRoleplay.Comms:SendRequest("X", targetPlayerName)
+    end
+end
+
+function PUIRoleplay:Repaint()
+    if not sheetFrame then return end
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    sheetFrame:SetBackdrop(bd)
+    sheetFrame:SetBackdropColor(r, g, b, a)
+    sheetFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    if sheetFrame.contentBox then
+        sheetFrame.contentBox:SetBackdrop(bd)
+        sheetFrame.contentBox:SetBackdropColor(r * 0.8, g * 0.8, b * 0.8, 0.95)
+        sheetFrame.contentBox:SetBackdropBorderColor(br, bg, bb, ba)
+    end
+
+    if activeTab then
+        Sheet:SelectTab(activeTab)
     end
 end

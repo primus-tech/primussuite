@@ -112,6 +112,12 @@ function PUILogViewer:OnInitialize()
             PUILogViewer:AddLogEntry(cat, ch, sender or "System", msg)
         end)
     end
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUILogViewer", function()
+            PUILogViewer:Repaint()
+        end)
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -140,14 +146,24 @@ function PUILogViewer:BuildFrame()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function() this:StartMoving() end)
     f:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-    f:SetBackdrop({
+    
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.08, 0.98
+    local br, bg, bb, ba = 0.20, 0.22, 0.28, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel") or {
         bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        tile = false, tileSize = 0, edgeSize = 1,
-        insets = { left = 1, right = 1, top = 1, bottom = 1 }
-    })
-    f:SetBackdropColor(0.06, 0.06, 0.08, 0.98)
-    f:SetBackdropBorderColor(0.20, 0.22, 0.28, 1.0)
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    }
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+    f:SetBackdrop(bd)
+    f:SetBackdropColor(r, g, b, a)
+    f:SetBackdropBorderColor(br, bg, bb, ba)
     table.insert(UISpecialFrames, "Primus_PUILogViewer_Frame")
 
     if Primus.PUIMover then
@@ -595,6 +611,42 @@ SlashCmdList["PUIURL"] = function(msg)
         PUILogViewer:ShowURLPopup(msg)
     else
         PUILogViewer:Open("URL")
+    end
+end
+
+function PUILogViewer:Repaint()
+    if not logFrame then return end
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local ar, ag, ab = Skinner:GetAccentColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    logFrame:SetBackdrop(bd)
+    logFrame:SetBackdropColor(r, g, b, a)
+    logFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    if logFrame.tabs then
+        for i = 1, 5 do
+            local tab = logFrame.tabs[i]
+            if tab and tab.SetBackdrop then
+                tab:SetBackdrop(bd)
+                if i == activeTab then
+                    tab:SetBackdropColor(r + 0.12, g + 0.12, b + 0.15, 1.0)
+                    tab:SetBackdropBorderColor(ar, ag, ab, 1.0)
+                else
+                    tab:SetBackdropColor(r, g, b, 0.9)
+                    tab:SetBackdropBorderColor(br, bg, bb, 1.0)
+                end
+            end
+        end
+    end
+
+    if logFrame.searchEB and logFrame.searchEB.SetBackdrop then
+        logFrame.searchEB:SetBackdrop(bd)
+        logFrame.searchEB:SetBackdropColor(r * 0.7, g * 0.7, b * 0.7, 0.85)
+        logFrame.searchEB:SetBackdropBorderColor(br, bg, bb, 1.0)
     end
 end
 

@@ -739,6 +739,12 @@ function PUIBank:OnInitialize()
             end
         end, "Toggle Unified Bank Frame (/pui bank)")
     end
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIBank", function()
+            PUIBank:Repaint()
+        end)
+    end
 end
 
 function PUIBank:OnEnable()
@@ -791,4 +797,26 @@ function PUIBank:OnDisable()
     if BankFrame then
         BankFrame:Hide()
     end
+end
+
+function PUIBank:Repaint()
+    if not bankFrame then return end
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    bankFrame:SetBackdrop(bd)
+    bankFrame:SetBackdropColor(r, g, b, a)
+    bankFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    local searchBox = _G["Primus_PUIBankSearchBox"]
+    if searchBox and searchBox.SetBackdrop then
+        searchBox:SetBackdrop(bd)
+        searchBox:SetBackdropColor(r * 0.7, g * 0.7, b * 0.7, 0.85)
+        searchBox:SetBackdropBorderColor(br, bg, bb, 1.0)
+    end
+
+    self:UpdateBankSlots()
 end

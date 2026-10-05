@@ -165,9 +165,19 @@ function PUIUnitBase:CreateUnitFrame(parent, unit, width, height, customName)
     f:SetWidth(width)
     f:SetHeight(height)
     f:SetPoint("CENTER", 0, 0)
-    f:SetBackdrop(Media:Fetch("border", "1Pixel"))
-    f:SetBackdropColor(0.08, 0.08, 0.10, 0.95)
-    f:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+    
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.08, 0.08, 0.10, 0.95
+    local br, bg, bb, ba = 0.20, 0.20, 0.25, 1.0
+    local bd = Media:Fetch("border", "1Pixel")
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+    f:SetBackdrop(bd)
+    f:SetBackdropColor(r, g, b, a)
+    f:SetBackdropBorderColor(br, bg, bb, ba)
     f:EnableMouse(true)
     f:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
     f.unit = unit
@@ -337,7 +347,13 @@ function PUIUnitBase:CreateUnitFrame(parent, unit, width, height, customName)
             local dc = DEBUFF_COLORS[foundDebuffType]
             self:SetBackdropBorderColor(dc.r, dc.g, dc.b, 1.0)
         else
-            self:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+            local Skinner = Primus.Skinner
+            if Skinner and Skinner.GetBorderColor then
+                local br, bg, bb, ba = Skinner:GetBorderColor()
+                self:SetBackdropBorderColor(br, bg, bb, ba)
+            else
+                self:SetBackdropBorderColor(0.20, 0.20, 0.25, 1.0)
+            end
         end
 
         -- Heal Prediction Sync
@@ -400,6 +416,23 @@ function PUIUnitBase:RegisterOptionsFlare()
     })
 end
 
+function PUIUnitBase:RepaintAll()
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+    local frameCount = table.getn(activeUnitFrames)
+    for j = 1, frameCount do
+        local f = activeUnitFrames[j]
+        if f and f.SetBackdrop then
+            f:SetBackdrop(bd)
+            f:SetBackdropColor(r, g, b, a)
+            f:SetBackdropBorderColor(br, bg, bb, ba)
+        end
+    end
+end
+
 function PUIUnitBase:OnInitialize()
     self:RegisterOptionsFlare()
     local unitEvents = {
@@ -438,4 +471,10 @@ function PUIUnitBase:OnInitialize()
             end
         end
     end)
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIUnitBase", function()
+            PUIUnitBase:RepaintAll()
+        end)
+    end
 end

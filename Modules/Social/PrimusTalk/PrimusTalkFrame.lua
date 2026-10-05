@@ -305,8 +305,42 @@ function PUITalk:CreateMasterFrame()
 
     masterFrame = f
     self.masterFrame = f
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUITalk", function()
+            PUITalk:Repaint()
+        end)
+    end
+
     PUITalk:SelectMasterTab(self.db:Get("activeMasterTab") or 1)
     return f
+end
+
+function PUITalk:Repaint()
+    if not masterFrame then return end
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local ar, ag, ab, aa = Skinner:GetAccentColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    local function Clamp(v)
+        if v > 1.0 then return 1.0 elseif v < 0.0 then return 0.0 else return v end
+    end
+
+    masterFrame:SetBackdrop(bd)
+    masterFrame:SetBackdropColor(r, g, b, a)
+    masterFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    if masterFrame.header then
+        masterFrame.header:SetBackdrop(bd)
+        masterFrame.header:SetBackdropColor(Clamp(r + 0.04), Clamp(g + 0.04), Clamp(b + 0.06), 1.0)
+        masterFrame.header:SetBackdropBorderColor(ar, ag, ab, 0.8)
+    end
+
+    self:SelectMasterTab(self.db:Get("activeMasterTab") or 1)
 end
 
 -- =========================================================================
@@ -318,18 +352,36 @@ function PUITalk:SelectMasterTab(tabIndex)
     masterFrame:Show()
     self.db:Set("activeMasterTab", tabIndex)
 
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.06, 0.09, 0.85
+    local br, bg, bb, ba = 0.20, 0.20, 0.25, 0.8
+    local ar, ag, ab, aa = 0.20, 0.75, 1.00, 1.0
+    local bd = Media and Media:Fetch("border", "1Pixel")
+
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        br, bg, bb, ba = Skinner:GetBorderColor()
+        ar, ag, ab, aa = Skinner:GetAccentColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+
+    local function Clamp(v)
+        if v > 1.0 then return 1.0 elseif v < 0.0 then return 0.0 else return v end
+    end
+
     -- Update Tab Button Visuals
     local tabs = { masterFrame.tabChat, masterFrame.tabMessages, masterFrame.tabSocial }
     for i = 1, 3 do
         local btn = tabs[i]
         if btn then
+            btn:SetBackdrop(bd)
             if i == tabIndex then
-                btn:SetBackdropColor(0.18, 0.26, 0.40, 1.0)
-                btn:SetBackdropBorderColor(0.40, 0.75, 1.0, 1.0)
-                if btn.text then btn.text:SetTextColor(1.0, 1.0, 1.0) end
+                btn:SetBackdropColor(Clamp(r + 0.12), Clamp(g + 0.12), Clamp(b + 0.16), 1.0)
+                btn:SetBackdropBorderColor(ar, ag, ab, 1.0)
+                if btn.text then btn.text:SetTextColor(ar, ag, ab) end
             else
-                btn:SetBackdropColor(0.08, 0.10, 0.14, 0.8)
-                btn:SetBackdropBorderColor(0.20, 0.28, 0.40, 0.8)
+                btn:SetBackdropColor(Clamp(r + 0.02), Clamp(g + 0.02), Clamp(b + 0.04), 0.8)
+                btn:SetBackdropBorderColor(br, bg, bb, 0.7)
                 if btn.text then btn.text:SetTextColor(0.7, 0.7, 0.7) end
             end
         end

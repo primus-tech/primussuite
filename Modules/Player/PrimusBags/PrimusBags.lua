@@ -939,6 +939,12 @@ function PUIBags:OnInitialize()
         if Sort and Sort.Stop then Sort:Stop() end
     end)
 
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIBags", function()
+            PUIBags:Repaint()
+        end)
+    end
+
     -- Header Controls: Search EditBox
     local searchBox = CreateFrame("EditBox", "Primus_PUIBagSearchBox", bagFrame)
     searchBox:SetWidth(110)
@@ -1350,4 +1356,38 @@ function PUIBags:OnDisable()
     if bagFrame and bagFrame:IsShown() then
         bagFrame:Hide()
     end
+end
+
+function PUIBags:Repaint()
+    if not bagFrame then return end
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBackdropColor then return end
+    local r, g, b, a = Skinner:GetBackdropColor()
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+
+    bagFrame:SetBackdrop(bd)
+    bagFrame:SetBackdropColor(r, g, b, a)
+    bagFrame:SetBackdropBorderColor(br, bg, bb, ba)
+
+    local searchBox = _G["Primus_PUIBagSearchBox"]
+    if searchBox and searchBox.SetBackdrop then
+        searchBox:SetBackdrop(bd)
+        searchBox:SetBackdropColor(r * 0.7, g * 0.7, b * 0.7, 0.85)
+        searchBox:SetBackdropBorderColor(br, bg, bb, 1.0)
+    end
+
+    local trayToggleBtn = _G["Primus_PUIBagTrayToggleBtn"]
+    if trayToggleBtn and trayToggleBtn.SetBackdrop then
+        trayToggleBtn:SetBackdrop(bd)
+        trayToggleBtn:SetBackdropColor(r, g, b, 0.9)
+    end
+
+    local sortBtn = _G["Primus_PUIBagSortBtn"]
+    if sortBtn and sortBtn.SetBackdrop then
+        sortBtn:SetBackdrop(bd)
+        sortBtn:SetBackdropColor(r, g, b, 0.9)
+    end
+
+    self:UpdateBagSlots()
 end

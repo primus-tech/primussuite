@@ -111,9 +111,16 @@ function PUIHotbars:StyleButton(btn, size)
         local b = CreateFrame("Frame", nil, btn)
         if b then
             b:SetAllPoints(btn)
-            b:SetBackdrop(Media:Fetch("border", "1Pixel"))
+            local Skinner = Primus.Skinner
+            local br, bg, bb, ba = 0.22, 0.22, 0.28, 1.0
+            local bd = Media:Fetch("border", "1Pixel")
+            if Skinner and Skinner.GetBorderColor then
+                br, bg, bb, ba = Skinner:GetBorderColor()
+                bd = Skinner:GetBackdropDescriptor("1Pixel")
+            end
+            b:SetBackdrop(bd)
             b:SetBackdropColor(0, 0, 0, 0)
-            b:SetBackdropBorderColor(0.22, 0.22, 0.28, 1.0)
+            b:SetBackdropBorderColor(br, bg, bb, ba)
             b:SetFrameLevel(btn:GetFrameLevel() + 2)
             btn._primusBorder = b
         end
@@ -218,6 +225,22 @@ function PUIHotbars:UpdateButtonStates()
             elseif icon and type(icon.SetVertexColor) == "function" then
                 icon:SetVertexColor(1.0, 1.0, 1.0)
             end
+        end
+    end
+end
+
+function PUIHotbars:RepaintAllButtons()
+    local Skinner = Primus.Skinner
+    if not Skinner or not Skinner.GetBorderColor then return end
+    local br, bg, bb, ba = Skinner:GetBorderColor()
+    local bd = Skinner:GetBackdropDescriptor("1Pixel")
+    local count = table.getn(self.trackedButtons)
+    for i = 1, count do
+        local btn = self.trackedButtons[i]
+        if btn and btn._primusBorder and btn._primusBorder.SetBackdrop then
+            btn._primusBorder:SetBackdrop(bd)
+            btn._primusBorder:SetBackdropColor(0, 0, 0, 0)
+            btn._primusBorder:SetBackdropBorderColor(br, bg, bb, ba)
         end
     end
 end

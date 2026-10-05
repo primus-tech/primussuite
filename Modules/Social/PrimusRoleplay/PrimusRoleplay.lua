@@ -522,6 +522,12 @@ function PUIRoleplay:OnInitialize()
 
     SLASH_PUIMRP1 = "/mrp"
     SlashCmdList["PUIMRP"] = SlashCmdList["PUIRP"]
+
+    if Primus.Skinner and Primus.Skinner.RegisterCallback then
+        Primus.Skinner:RegisterCallback("PUIRoleplay", function()
+            PUIRoleplay:Repaint()
+        end)
+    end
 end
 
 function PUIRoleplay:OnEnable()

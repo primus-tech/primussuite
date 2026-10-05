@@ -54,14 +54,25 @@ local function CreateContextMenuFrame()
     f:SetHeight(100)
     f:EnableMouse(true)
     f:SetClampedToScreen(true)
-    f:SetBackdrop({
+
+    local Skinner = Primus.Skinner
+    local r, g, b, a = 0.06, 0.08, 0.12, 0.98
+    local ar, ag, ab = 0.20, 0.75, 1.00
+    local bd = {
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
         tile = false, tileSize = 0, edgeSize = 1,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
-    })
-    f:SetBackdropColor(0.06, 0.08, 0.12, 0.98)
-    f:SetBackdropBorderColor(0.20, 0.45, 0.75, 0.9)
+    }
+    if Skinner and Skinner.GetBackdropColor then
+        r, g, b, a = Skinner:GetBackdropColor()
+        ar, ag, ab = Skinner:GetAccentColor()
+        bd = Skinner:GetBackdropDescriptor("1Pixel")
+    end
+
+    f:SetBackdrop(bd)
+    f:SetBackdropColor(r, g, b, 0.98)
+    f:SetBackdropBorderColor(ar, ag, ab, 0.9)
     f:Hide()
 
     table.insert(UISpecialFrames, "Primus_ContextMenu")
@@ -133,7 +144,13 @@ local function AcquireMenuButton(index)
     -- Mouse Hover scripts
     btn:SetScript("OnEnter", function()
         if not this.isTitle and not this.disabled and not this.isSeparator then
-            this:SetBackdropColor(0.15, 0.35, 0.65, 0.8)
+            local Skinner = Primus.Skinner
+            if Skinner and Skinner.GetAccentColor then
+                local ar, ag, ab = Skinner:GetAccentColor()
+                this:SetBackdropColor(ar * 0.4, ag * 0.4, ab * 0.4, 0.85)
+            else
+                this:SetBackdropColor(0.15, 0.35, 0.65, 0.8)
+            end
             this.label:SetTextColor(1, 1, 1, 1)
         end
     end)
@@ -324,4 +341,16 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
     f:SetFrameStrata("TOOLTIP")
     f:SetFrameLevel(250)
     f:Show()
+end
+
+-- Register repaint listener with Skinner
+if Primus and Primus.Skinner and Primus.Skinner.RegisterCallback then
+    Primus.Skinner:RegisterCallback("ContextMenu", function(bd, r, g, b, a, br, bg, bb, ba, ar, ag, ab, aa)
+        if menuFrame then
+            local sBD = Primus.Skinner:GetBackdropDescriptor("1Pixel")
+            menuFrame:SetBackdrop(sBD)
+            menuFrame:SetBackdropColor(r, g, b, 0.98)
+            menuFrame:SetBackdropBorderColor(ar, ag, ab, 0.9)
+        end
+    end)
 end
