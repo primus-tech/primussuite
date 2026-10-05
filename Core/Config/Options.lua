@@ -328,6 +328,12 @@ function Options:BuildDeclarativePanel(parent, flare)
                     table.insert(menuItems, {
                         text = eText,
                         checked = (eVal == currentV),
+                        func = function()
+                            btnSelf.text:SetText(eText .. " ▼")
+                            if optSelf.set then
+                                optSelf.set(eVal)
+                            end
+                        end,
                         onClick = function()
                             btnSelf.text:SetText(eText .. " ▼")
                             if optSelf.set then
@@ -337,7 +343,7 @@ function Options:BuildDeclarativePanel(parent, flare)
                     })
                 end
                 if Widgets and Widgets.ShowContextMenu then
-                    Widgets:ShowContextMenu(this, menuItems, 220)
+                    Widgets:ShowContextMenu(this, menuItems, { minWidth = 220 })
                 end
             end)
 

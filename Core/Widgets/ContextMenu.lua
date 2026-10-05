@@ -152,8 +152,9 @@ local function AcquireMenuButton(index)
     btn:SetScript("OnClick", function()
         if this.disabled or this.isTitle or this.isSeparator then return end
         local item = this.itemData
-        if item and item.func then
-            local success, err = pcall(item.func, item)
+        local callback = item and (item.func or item.onClick or item.callback or item.action)
+        if callback and type(callback) == "function" then
+            local success, err = pcall(callback, item)
             if not success and Primus.Log then
                 Primus:Log("ContextMenu action error: " .. tostring(err), "ERROR")
             end
@@ -185,7 +186,11 @@ end
 
 function Widgets:ShowContextMenu(anchorOrPoint, items, options)
     if not items or table.getn(items) == 0 then return end
-    options = options or {}
+    if type(options) == "number" then
+        options = { minWidth = options }
+    elseif type(options) ~= "table" then
+        options = {}
+    end
 
     local f = CreateContextMenuFrame()
     f:Hide()
