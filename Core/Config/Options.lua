@@ -725,8 +725,6 @@ function Options:RefreshModuleList()
             end
             GameTooltip:Hide()
         end)
-            GameTooltip:Hide()
-        end)
 
         row:Show()
     end
