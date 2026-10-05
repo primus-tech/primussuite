@@ -90,13 +90,13 @@ local function AcquireMenuButton(index)
 
     local btn = CreateFrame("Button", "Primus_ContextMenu_Item_" .. index, menuFrame)
     btn:SetHeight(ITEM_HEIGHT)
-    btn:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        tile = false, tileSize = 0, edgeSize = 0,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    btn:SetBackdropColor(0, 0, 0, 0)
+
+    -- Hover highlight background texture (zero backdrop edge artifacts)
+    local bg = btn:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(btn)
+    bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    bg:SetVertexColor(0, 0, 0, 0)
+    btn.bg = bg
 
     -- Icon texture
     local icon = btn:CreateTexture(nil, "ARTWORK")
@@ -147,9 +147,9 @@ local function AcquireMenuButton(index)
             local Skinner = Primus.Skinner
             if Skinner and Skinner.GetAccentColor then
                 local ar, ag, ab = Skinner:GetAccentColor()
-                this:SetBackdropColor(ar * 0.4, ag * 0.4, ab * 0.4, 0.85)
+                this.bg:SetVertexColor(ar, ag, ab, 0.25)
             else
-                this:SetBackdropColor(0.15, 0.35, 0.65, 0.8)
+                this.bg:SetVertexColor(0.20, 0.50, 0.85, 0.25)
             end
             this.label:SetTextColor(1, 1, 1, 1)
         end
@@ -157,7 +157,7 @@ local function AcquireMenuButton(index)
 
     btn:SetScript("OnLeave", function()
         if not this.isTitle and not this.disabled and not this.isSeparator then
-            this:SetBackdropColor(0, 0, 0, 0)
+            this.bg:SetVertexColor(0, 0, 0, 0)
             if this.itemColor then
                 this.label:SetTextColor(this.itemColor.r or 0.9, this.itemColor.g or 0.9, this.itemColor.b or 0.9, 1.0)
             else
@@ -212,6 +212,16 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
     local f = CreateContextMenuFrame()
     f:Hide()
 
+    local Skinner = Primus.Skinner
+    if Skinner and Skinner.GetBackdropColor then
+        local r, g, b = Skinner:GetBackdropColor()
+        local ar, ag, ab = Skinner:GetAccentColor()
+        local bd = Skinner:GetBackdropDescriptor("1Pixel")
+        f:SetBackdrop(bd)
+        f:SetBackdropColor(r, g, b, 0.98)
+        f:SetBackdropBorderColor(ar, ag, ab, 0.9)
+    end
+
     -- Calculate Width & Populate Buttons
     local maxTextWidth = 100
     local visibleCount = 0
@@ -231,7 +241,9 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
             btn:ClearAllPoints()
             btn:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4 - (visibleCount - 1) * ITEM_HEIGHT)
             btn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -4, -4 - (visibleCount - 1) * ITEM_HEIGHT)
-            btn:SetBackdropColor(0, 0, 0, 0)
+            if btn.bg then
+                btn.bg:SetVertexColor(0, 0, 0, 0)
+            end
 
             btn.itemData = item
             btn.isTitle = item.isTitle or false
