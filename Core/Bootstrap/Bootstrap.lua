@@ -48,6 +48,7 @@ Primus.Time      = Primus.Time or {}
 Primus.Events    = Primus.Events or {}
 Primus.DB        = Primus.DB or {}
 Primus.Media     = Primus.Media or {}
+Primus.Skinner   = Primus.Skinner or {}
 Primus.Anim      = Primus.Anim or {}
 Primus.Widgets   = Primus.Widgets or {}
 Primus.Keybind   = Primus.Keybind or {}

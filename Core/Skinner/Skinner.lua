@@ -20,6 +20,10 @@ if not Primus then return end
 
 local Skinner = Primus.Skinner or {}
 Primus.Skinner = Skinner
+Skinner.name = "Skinner"
+Skinner.enabled = true
+Primus:RegisterModule("Skinner", Skinner, "Core")
+Skinner.enabled = true
 
 local Media  = Primus.Media
 local Utils  = Primus.Utils

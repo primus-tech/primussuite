@@ -588,7 +588,7 @@ function Options:RefreshModuleList()
 
         -- Checkbox state & handler
         local isEnabled = Primus:IsModuleEnabled(flare.id)
-        if flare.id == "System" or flare.id == "Options" then
+        if flare.id == "System" or flare.id == "Options" or flare.id == "Skinner" then
             isEnabled = true
             row.cb:Disable()
         else
@@ -610,6 +610,7 @@ function Options:RefreshModuleList()
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT", 4, 0)
             GameTooltip:ClearLines()
             local en = Primus:IsModuleEnabled(this.moduleId)
+            if this.moduleId == "System" or this.moduleId == "Options" or this.moduleId == "Skinner" then en = true end
             GameTooltip:AddLine("Module State", 1.0, 0.82, 0.0)
             GameTooltip:AddLine(en and "Click to disable this module." or "Click to enable this module.", 0.85, 0.85, 0.85)
             GameTooltip:Show()
@@ -648,7 +649,7 @@ function Options:RefreshModuleList()
 
             local headerTitle = f.meta.title or ("Primus " .. (this.cleanName or f.id))
             local en = Primus:IsModuleEnabled(f.id)
-            if f.id == "System" or f.id == "Options" then en = true end
+            if f.id == "System" or f.id == "Options" or f.id == "Skinner" then en = true end
 
             GameTooltip:AddLine(headerTitle, 1.0, 0.82, 0.0)
             local statStr = en and "|cff33ff33[ Active ]|r" or "|cffff4444[ Disabled ]|r"
