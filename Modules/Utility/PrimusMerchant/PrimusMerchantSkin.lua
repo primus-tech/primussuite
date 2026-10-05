@@ -31,9 +31,8 @@ local scanStatusLabel = nil
 local scanCountdownLabel = nil
 local scanProgressBar = nil
 local pacingButtons = {}
-local scopeSelectorBtn = nil
+local scopeDropdownBtn = nil
 local scopeKeywordBox = nil
-local scopePills = {}
 
 -- =========================================================================
 -- AUCTION HOUSE FRAME DARK GLASS RESKIN
@@ -363,70 +362,62 @@ function PUIMerchant:CreateFlyoutDrawer()
     scanCountdownLabel:SetTextColor(1.0, 0.84, 0.0)
     scanCountdownLabel:SetText("")
 
-    -- Scope Selector Interactive Dropdown Button (Opens Hierarchical Category / Sub-Category Menu)
-    scopeSelectorBtn = Widgets:CreateButton(flyoutFrame, "🎯 Scope: All Categories ▼", 176, 20, function()
-        PUIMerchant:OpenScopeCategoryMenu(scopeSelectorBtn)
+    -- Scope Dropdown Section Label
+    local scopeSectionLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
+    scopeSectionLabel:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+    scopeSectionLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -158)
+    scopeSectionLabel:SetTextColor(0.8, 0.8, 0.8)
+    scopeSectionLabel:SetText("Scan Target / Category:")
+
+    -- Dedicated Dark Glass Scope Dropdown Button
+    scopeDropdownBtn = CreateFrame("Button", "PUIMerchantScopeDropdown", flyoutFrame)
+    scopeDropdownBtn:SetWidth(176)
+    scopeDropdownBtn:SetHeight(22)
+    scopeDropdownBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -170)
+    scopeDropdownBtn:SetBackdrop(Media:Fetch("border", "1Pixel"))
+    scopeDropdownBtn:SetBackdropColor(0.12, 0.12, 0.16, 0.95)
+    scopeDropdownBtn:SetBackdropBorderColor(0.25, 0.50, 0.85, 0.9)
+
+    local scopeDropdownText = scopeDropdownBtn:CreateFontString(nil, "OVERLAY")
+    scopeDropdownText:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+    scopeDropdownText:SetPoint("LEFT", scopeDropdownBtn, "LEFT", 8, 0)
+    scopeDropdownText:SetPoint("RIGHT", scopeDropdownBtn, "RIGHT", -20, 0)
+    scopeDropdownText:SetJustifyH("LEFT")
+    scopeDropdownText:SetTextColor(0.95, 0.95, 0.95)
+    scopeDropdownText:SetText("🎯 All Categories")
+    scopeDropdownBtn.text = scopeDropdownText
+
+    local scopeDropdownArrow = scopeDropdownBtn:CreateFontString(nil, "OVERLAY")
+    scopeDropdownArrow:SetFont(Media:Fetch("font", "Default"), 10, "OUTLINE")
+    scopeDropdownArrow:SetPoint("RIGHT", scopeDropdownBtn, "RIGHT", -6, 0)
+    scopeDropdownArrow:SetTextColor(0.4, 0.8, 1.0)
+    scopeDropdownArrow:SetText("▼")
+    scopeDropdownBtn.arrow = scopeDropdownArrow
+
+    scopeDropdownBtn:SetScript("OnClick", function()
+        PUIMerchant:OpenScopeCategoryMenu(scopeDropdownBtn)
     end)
-    scopeSelectorBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -160)
-    scopeSelectorBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 0.8)
-    PUIMerchant.scopeSelectorBtn = scopeSelectorBtn
-
-    -- Scope Quick Preset Pills Rail (Left-Click: Select / Right-Click: Sub-Menu)
-    scopePills = {}
-    local presetPills = {
-        { id = 0, name = "All",     width = 27, label = "All Categories", tip = "All Categories" },
-        { id = 6, name = "Trade",   width = 33, label = "Trade Goods",    tip = "Trade Goods (Herbalism, Skinning, Mining, Cloth...)" },
-        { id = 4, name = "Pots",    width = 29, label = "Consumables",    tip = "Consumables (Health, Mana, Elixirs, Flasks...)" },
-        { id = 1, name = "Gear",    width = 29, label = "Weapons",        tip = "Gear (1H/2H Swords, Axes, Armor...)" },
-        { id = 9, name = "Recipes", width = 34, label = "Recipes",        tip = "Recipes (All Professions)" },
-        { id = 3, name = "Bags",    width = 24, label = "Containers",     tip = "Bags & Containers" },
-    }
-    local prevPill = nil
-    for _, pillInfo in ipairs(presetPills) do
-        local pId = pillInfo.id
-        local pName = pillInfo.name
-        local pTip = pillInfo.tip
-        local pLabel = pillInfo.label
-
-        local pillBtn = Widgets:CreateButton(flyoutFrame, pName, pillInfo.width, 16, function()
-            if arg1 == "RightButton" then
-                if pId == 0 then
-                    PUIMerchant:OpenScopeCategoryMenu(scopeSelectorBtn or pillBtn)
-                else
-                    PUIMerchant:OpenSubCategoryMenu(pId, scopeSelectorBtn or pillBtn)
-                end
-            else
-                PUIMerchant:SetScanScope(pId, 0, "", pLabel)
-                if scopeKeywordBox then scopeKeywordBox:SetText("") end
-                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to %s.", pLabel), "69ccf0"))
-            end
-        end)
-        pillBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        pillBtn:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(pLabel, 1, 0.84, 0)
-            GameTooltip:AddLine(pTip, 0.8, 0.8, 0.8, 1)
-            GameTooltip:AddLine("Left-Click: Set category scope", 0.4, 0.8, 1)
-            GameTooltip:AddLine("Right-Click: Choose sub-category", 0.2, 1, 0.4)
-            GameTooltip:Show()
-        end)
-        pillBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-        if not prevPill then
-            pillBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -182)
-        else
-            pillBtn:SetPoint("LEFT", prevPill, "RIGHT", 2, 0)
-        end
-        scopePills[pId] = pillBtn
-        prevPill = pillBtn
-    end
-    PUIMerchant.scopePills = scopePills
+    scopeDropdownBtn:SetScript("OnEnter", function()
+        this:SetBackdropColor(0.18, 0.22, 0.28, 1.0)
+        this:SetBackdropBorderColor(0.40, 0.80, 1.0, 1.0)
+        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Scan Target / Category", 1, 0.84, 0)
+        GameTooltip:AddLine("Click to choose AH Category (Trade, Consumables, Gear...) and Sub-categories.", 0.8, 0.8, 0.8, 1)
+        GameTooltip:Show()
+    end)
+    scopeDropdownBtn:SetScript("OnLeave", function()
+        this:SetBackdropColor(0.12, 0.12, 0.16, 0.95)
+        this:SetBackdropBorderColor(0.25, 0.50, 0.85, 0.9)
+        GameTooltip:Hide()
+    end)
+    PUIMerchant.scopeDropdownBtn = scopeDropdownBtn
+    PUIMerchant.scopeSelectorBtn = scopeDropdownBtn
 
     -- Scope Keyword Search EditBox
     scopeKeywordBox = CreateFrame("EditBox", "PUIMerchantFlyoutKeywordBox", flyoutFrame)
     scopeKeywordBox:SetWidth(176)
     scopeKeywordBox:SetHeight(18)
-    scopeKeywordBox:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -200)
+    scopeKeywordBox:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -196)
     scopeKeywordBox:SetBackdrop(Media:Fetch("border", "1Pixel"))
     scopeKeywordBox:SetBackdropColor(0.04, 0.04, 0.06, 0.90)
     scopeKeywordBox:SetBackdropBorderColor(0.25, 0.25, 0.30, 1.0)
@@ -438,7 +429,7 @@ function PUIMerchant:CreateFlyoutDrawer()
     kwPlaceholder:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
     kwPlaceholder:SetPoint("LEFT", scopeKeywordBox, "LEFT", 6, 0)
     kwPlaceholder:SetTextColor(0.45, 0.45, 0.45)
-    kwPlaceholder:SetText("Filter keyword (e.g. Leather)...")
+    kwPlaceholder:SetText("Optional filter (e.g. Leather)...")
 
     scopeKeywordBox:SetScript("OnEditFocusGained", function() kwPlaceholder:Hide() end)
     scopeKeywordBox:SetScript("OnEditFocusLost", function()
@@ -461,8 +452,8 @@ function PUIMerchant:CreateFlyoutDrawer()
     sep2:SetTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
     sep2:SetVertexColor(0.20, 0.20, 0.25, 0.8)
     sep2:SetHeight(1)
-    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -224)
-    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -224)
+    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -220)
+    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -220)
 
     -- Section: Quick Shortcuts & Analytics
     local toolsLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
@@ -923,27 +914,13 @@ function PUIMerchant:UpdateFlyoutScannerUI()
         end
     end
 
-    -- Update scope selector button label
-    if scopeSelectorBtn then
+    -- Update scope dropdown button label
+    if scopeDropdownBtn and scopeDropdownBtn.text then
         local scopeLbl = PUIMerchant.GetScopeLabel and PUIMerchant:GetScopeLabel() or "All Categories"
-        if string.len(scopeLbl) > 22 then
-            scopeLbl = string.sub(scopeLbl, 1, 20) .. ".."
+        if string.len(scopeLbl) > 24 then
+            scopeLbl = string.sub(scopeLbl, 1, 22) .. ".."
         end
-        scopeSelectorBtn:SetText(string.format("🎯 %s ▼", scopeLbl))
-    end
-
-    -- Update scope pill highlights
-    local curScopeClass = (state.scopeClass ~= nil) and state.scopeClass or (PUIMerchant.scannerState and PUIMerchant.scannerState.scopeClass) or 0
-    if scopePills then
-        for pId, pBtn in pairs(scopePills) do
-            if pId == curScopeClass then
-                pBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
-                pBtn:SetBackdropColor(0.18, 0.25, 0.35, 0.95)
-            else
-                pBtn:SetBackdropBorderColor(0.25, 0.25, 0.30, 0.8)
-                pBtn:SetBackdropColor(0.10, 0.10, 0.14, 0.90)
-            end
-        end
+        scopeDropdownBtn.text:SetText(scopeLbl)
     end
 
     if state.isScanning then
