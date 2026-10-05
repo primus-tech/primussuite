@@ -224,6 +224,294 @@ function PUIMerchant:ToggleFlyout(forceState)
     self:UpdateFlyoutAnchor()
 end
 
+-- =========================================================================
+-- DEDICATED DARK GLASS SCOPE DROPDOWN MENU
+-- =========================================================================
+
+local scopeMenuFrame = nil
+local menuCatcher = nil
+local scopeMenuRows = {}
+local NUM_MENU_ROWS = 12
+local MENU_ROW_HEIGHT = 20
+
+function PUIMerchant:SelectDropdownScope(item)
+    if not item then return end
+    if item.isBrowse then
+        self:UseBlizzardBrowseScope()
+    else
+        self:SetScanScope(item.classId or 0, item.subClassId or 0, item.keyword or "", item.label, item.icon)
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to %s.", item.label), "69ccf0"))
+    end
+    if scopeMenuFrame then
+        scopeMenuFrame:Hide()
+    end
+    if menuCatcher then
+        menuCatcher:Hide()
+    end
+end
+
+function PUIMerchant:CreateScopeDropdownMenu()
+    if scopeMenuFrame then return scopeMenuFrame end
+
+    -- Fullscreen click catcher
+    menuCatcher = CreateFrame("Button", "PUIMerchant_ScopeMenuCatcher", UIParent)
+    menuCatcher:SetFrameStrata("DIALOG")
+    menuCatcher:SetFrameLevel(240)
+    menuCatcher:SetAllPoints(UIParent)
+    menuCatcher:EnableMouse(true)
+    menuCatcher:Hide()
+    menuCatcher:SetScript("OnClick", function()
+        if scopeMenuFrame then scopeMenuFrame:Hide() end
+        menuCatcher:Hide()
+    end)
+
+    -- Floating Menu Container
+    local f = CreateFrame("Frame", "PUIMerchantScopeMenu", UIParent)
+    f:SetFrameStrata("DIALOG")
+    f:SetFrameLevel(250)
+    f:SetWidth(224)
+    f:SetHeight(NUM_MENU_ROWS * MENU_ROW_HEIGHT + 12)
+    f:SetBackdrop(Media:Fetch("border", "1Pixel"))
+    f:SetBackdropColor(0.06, 0.07, 0.10, 0.98)
+    f:SetBackdropBorderColor(0.20, 0.50, 0.85, 0.95)
+    f:EnableMouse(true)
+    f:Hide()
+
+    -- Scroll Frame
+    local sf = CreateFrame("ScrollFrame", "PUIMerchantScopeMenuScroll", f, "FauxScrollFrameTemplate")
+    sf:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -6)
+    sf:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -22, 6)
+    sf:SetScript("OnVerticalScroll", function()
+        FauxScrollFrame_OnVerticalScroll(MENU_ROW_HEIGHT, function()
+            PUIMerchant:UpdateScopeDropdownMenu()
+        end)
+    end)
+    f.scrollFrame = sf
+
+    -- Populate Menu Item Rows
+    for i = 1, NUM_MENU_ROWS do
+        local row = CreateFrame("Button", "PUIMerchantScopeMenuRow" .. i, f)
+        row:SetHeight(MENU_ROW_HEIGHT)
+        row:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -6 - (i - 1) * MENU_ROW_HEIGHT)
+        row:SetPoint("TOPRIGHT", f, "TOPRIGHT", -22, -6 - (i - 1) * MENU_ROW_HEIGHT)
+        row:SetBackdrop(Media:Fetch("border", "1Pixel"))
+        row:SetBackdropColor(0, 0, 0, 0)
+        row:SetBackdropBorderColor(0, 0, 0, 0)
+
+        local icon = row:CreateTexture(nil, "ARTWORK")
+        icon:SetWidth(14)
+        icon:SetHeight(14)
+        icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+        icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        row.icon = icon
+
+        local check = row:CreateFontString(nil, "OVERLAY")
+        check:SetFont(Media:Fetch("font", "Default"), 10, "OUTLINE")
+        check:SetPoint("LEFT", row, "LEFT", 4, 0)
+        check:SetText("|cff00ff00✓|r")
+        row.check = check
+
+        local label = row:CreateFontString(nil, "OVERLAY")
+        label:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+        label:SetPoint("LEFT", row, "LEFT", 22, 0)
+        label:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        label:SetJustifyH("LEFT")
+        label:SetTextColor(0.9, 0.9, 0.9)
+        row.label = label
+
+        local rightLabel = row:CreateFontString(nil, "OVERLAY")
+        rightLabel:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+        rightLabel:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        rightLabel:SetJustifyH("RIGHT")
+        rightLabel:SetTextColor(0.5, 0.7, 0.9)
+        row.rightLabel = rightLabel
+
+        local headerBg = row:CreateTexture(nil, "BACKGROUND")
+        headerBg:SetAllPoints(row)
+        headerBg:SetTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
+        headerBg:SetVertexColor(0.18, 0.14, 0.04, 0.65)
+        headerBg:Hide()
+        row.headerBg = headerBg
+
+        local sepLine = row:CreateTexture(nil, "ARTWORK")
+        sepLine:SetHeight(1)
+        sepLine:SetPoint("LEFT", row, "LEFT", 4, 0)
+        sepLine:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        sepLine:SetTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
+        sepLine:SetVertexColor(0.25, 0.30, 0.40, 0.7)
+        sepLine:Hide()
+        row.sepLine = sepLine
+
+        row:SetScript("OnEnter", function()
+            if not this.isHeader and not this.isSeparator then
+                this:SetBackdropColor(0.18, 0.35, 0.65, 0.90)
+                this:SetBackdropBorderColor(0.40, 0.75, 1.0, 0.8)
+                this.label:SetTextColor(1, 1, 1)
+            end
+        end)
+        row:SetScript("OnLeave", function()
+            if not this.isHeader and not this.isSeparator then
+                this:SetBackdropColor(0, 0, 0, 0)
+                this:SetBackdropBorderColor(0, 0, 0, 0)
+                if this.isSelected then
+                    this.label:SetTextColor(0.20, 0.85, 1.0)
+                else
+                    this.label:SetTextColor(0.9, 0.9, 0.9)
+                end
+            end
+        end)
+        row:SetScript("OnClick", function()
+            if this.itemData and not this.isHeader and not this.isSeparator then
+                PUIMerchant:SelectDropdownScope(this.itemData)
+            end
+        end)
+
+        scopeMenuRows[i] = row
+    end
+
+    scopeMenuFrame = f
+    return f
+end
+
+function PUIMerchant:UpdateScopeDropdownMenu()
+    if not scopeMenuFrame or not scopeMenuFrame.scrollFrame then return end
+
+    local items = self.DROPDOWN_MENU_ITEMS or {}
+    local totalItems = table.getn(items)
+    FauxScrollFrame_Update(scopeMenuFrame.scrollFrame, totalItems, NUM_MENU_ROWS, MENU_ROW_HEIGHT)
+    local offset = FauxScrollFrame_GetOffset(scopeMenuFrame.scrollFrame) or 0
+
+    local curClass = PUIMerchant.scannerState.scopeClass or 0
+    local curSub = PUIMerchant.scannerState.scopeSubClass or 0
+    local curKw = PUIMerchant.scannerState.scopeName or ""
+
+    for i = 1, NUM_MENU_ROWS do
+        local row = scopeMenuRows[i]
+        local idx = offset + i
+
+        if row and idx <= totalItems then
+            local item = items[idx]
+            row.itemData = item
+            row.isHeader = item.isHeader
+            row.isSeparator = item.isSeparator
+
+            if item.isSeparator then
+                row.label:Hide()
+                row.icon:Hide()
+                row.check:Hide()
+                row.rightLabel:Hide()
+                row.headerBg:Hide()
+                row.sepLine:Show()
+                row:EnableMouse(false)
+                row:SetBackdropColor(0, 0, 0, 0)
+                row:SetBackdropBorderColor(0, 0, 0, 0)
+            elseif item.isHeader then
+                row.sepLine:Hide()
+                row.icon:Hide()
+                row.check:Hide()
+                row.rightLabel:Hide()
+                row.headerBg:Show()
+                row.label:Show()
+                row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
+                row.label:SetText(Utils.ColorText("• " .. item.label, item.color or "ffd100"))
+                row:EnableMouse(false)
+                row:SetBackdropColor(0, 0, 0, 0)
+                row:SetBackdropBorderColor(0, 0, 0, 0)
+            else
+                row.sepLine:Hide()
+                row.headerBg:Hide()
+                row:EnableMouse(true)
+
+                local isMatch = false
+                if item.isBrowse then
+                    isMatch = false
+                else
+                    isMatch = (curClass == (item.classId or 0) and curSub == (item.subClassId or 0) and (item.keyword or "") == curKw)
+                end
+                row.isSelected = isMatch
+
+                if isMatch then
+                    row.icon:Hide()
+                    row.check:Show()
+                    row.label:SetPoint("LEFT", row, "LEFT", 22, 0)
+                    row.label:SetTextColor(0.20, 0.85, 1.0)
+                else
+                    row.check:Hide()
+                    if item.icon then
+                        row.icon:SetTexture(item.icon)
+                        row.icon:Show()
+                        row.label:SetPoint("LEFT", row, "LEFT", 22, 0)
+                    else
+                        row.icon:Hide()
+                        row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
+                    end
+                    row.label:SetTextColor(0.9, 0.9, 0.9)
+                end
+
+                row.label:Show()
+                row.label:SetText(item.label or "")
+
+                if item.keyword and item.keyword ~= "" then
+                    row.rightLabel:SetText(string.format("[%s]", item.keyword))
+                    row.rightLabel:Show()
+                else
+                    row.rightLabel:Hide()
+                end
+
+                row:SetBackdropColor(0, 0, 0, 0)
+                row:SetBackdropBorderColor(0, 0, 0, 0)
+            end
+
+            row:Show()
+        else
+            if row then row:Hide() end
+        end
+    end
+end
+
+function PUIMerchant:ToggleScopeDropdownMenu(anchor)
+    anchor = anchor or scopeDropdownBtn
+    if not anchor then return end
+
+    if not scopeMenuFrame then
+        self:CreateScopeDropdownMenu()
+    end
+    if not scopeMenuFrame then return end
+
+    if scopeMenuFrame:IsShown() then
+        scopeMenuFrame:Hide()
+        if menuCatcher then menuCatcher:Hide() end
+    else
+        scopeMenuFrame:ClearAllPoints()
+        scopeMenuFrame:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+
+        -- Find active item index and scroll to it
+        local items = self.DROPDOWN_MENU_ITEMS or {}
+        local curClass = PUIMerchant.scannerState.scopeClass or 0
+        local curSub = PUIMerchant.scannerState.scopeSubClass or 0
+        local curKw = PUIMerchant.scannerState.scopeName or ""
+        local matchIdx = 1
+        for idx = 1, table.getn(items) do
+            local it = items[idx]
+            if not it.isHeader and not it.isSeparator and not it.isBrowse then
+                if curClass == (it.classId or 0) and curSub == (it.subClassId or 0) and (it.keyword or "") == curKw then
+                    matchIdx = idx
+                    break
+                end
+            end
+        end
+
+        local totalItems = table.getn(items)
+        local targetOffset = math.max(0, math.min(matchIdx - 3, totalItems - NUM_MENU_ROWS))
+        FauxScrollFrame_SetOffset(scopeMenuFrame.scrollFrame, targetOffset)
+        scopeMenuFrame.scrollFrame.offset = targetOffset
+
+        self:UpdateScopeDropdownMenu()
+        if menuCatcher then menuCatcher:Show() end
+        scopeMenuFrame:Show()
+    end
+end
+
 function PUIMerchant:CreateFlyoutDrawer()
     if flyoutFrame or not AuctionFrame then return end
 
@@ -372,19 +660,27 @@ function PUIMerchant:CreateFlyoutDrawer()
     -- Dedicated Dark Glass Scope Dropdown Button
     scopeDropdownBtn = CreateFrame("Button", "PUIMerchantScopeDropdown", flyoutFrame)
     scopeDropdownBtn:SetWidth(176)
-    scopeDropdownBtn:SetHeight(22)
+    scopeDropdownBtn:SetHeight(24)
     scopeDropdownBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -170)
     scopeDropdownBtn:SetBackdrop(Media:Fetch("border", "1Pixel"))
-    scopeDropdownBtn:SetBackdropColor(0.12, 0.12, 0.16, 0.95)
+    scopeDropdownBtn:SetBackdropColor(0.08, 0.08, 0.12, 0.95)
     scopeDropdownBtn:SetBackdropBorderColor(0.25, 0.50, 0.85, 0.9)
+
+    local scopeDropdownIcon = scopeDropdownBtn:CreateTexture(nil, "ARTWORK")
+    scopeDropdownIcon:SetWidth(14)
+    scopeDropdownIcon:SetHeight(14)
+    scopeDropdownIcon:SetPoint("LEFT", scopeDropdownBtn, "LEFT", 6, 0)
+    scopeDropdownIcon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    scopeDropdownIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    scopeDropdownBtn.icon = scopeDropdownIcon
 
     local scopeDropdownText = scopeDropdownBtn:CreateFontString(nil, "OVERLAY")
     scopeDropdownText:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-    scopeDropdownText:SetPoint("LEFT", scopeDropdownBtn, "LEFT", 8, 0)
-    scopeDropdownText:SetPoint("RIGHT", scopeDropdownBtn, "RIGHT", -20, 0)
+    scopeDropdownText:SetPoint("LEFT", scopeDropdownBtn, "LEFT", 24, 0)
+    scopeDropdownText:SetPoint("RIGHT", scopeDropdownBtn, "RIGHT", -18, 0)
     scopeDropdownText:SetJustifyH("LEFT")
     scopeDropdownText:SetTextColor(0.95, 0.95, 0.95)
-    scopeDropdownText:SetText("🎯 All Categories")
+    scopeDropdownText:SetText("All Categories (Full Scan)")
     scopeDropdownBtn.text = scopeDropdownText
 
     local scopeDropdownArrow = scopeDropdownBtn:CreateFontString(nil, "OVERLAY")
@@ -395,10 +691,10 @@ function PUIMerchant:CreateFlyoutDrawer()
     scopeDropdownBtn.arrow = scopeDropdownArrow
 
     scopeDropdownBtn:SetScript("OnClick", function()
-        PUIMerchant:OpenScopeCategoryMenu(scopeDropdownBtn)
+        PUIMerchant:ToggleScopeDropdownMenu(scopeDropdownBtn)
     end)
     scopeDropdownBtn:SetScript("OnEnter", function()
-        this:SetBackdropColor(0.18, 0.22, 0.28, 1.0)
+        this:SetBackdropColor(0.14, 0.18, 0.26, 1.0)
         this:SetBackdropBorderColor(0.40, 0.80, 1.0, 1.0)
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Scan Target / Category", 1, 0.84, 0)
@@ -406,7 +702,7 @@ function PUIMerchant:CreateFlyoutDrawer()
         GameTooltip:Show()
     end)
     scopeDropdownBtn:SetScript("OnLeave", function()
-        this:SetBackdropColor(0.12, 0.12, 0.16, 0.95)
+        this:SetBackdropColor(0.08, 0.08, 0.12, 0.95)
         this:SetBackdropBorderColor(0.25, 0.50, 0.85, 0.9)
         GameTooltip:Hide()
     end)
@@ -914,13 +1210,22 @@ function PUIMerchant:UpdateFlyoutScannerUI()
         end
     end
 
-    -- Update scope dropdown button label
-    if scopeDropdownBtn and scopeDropdownBtn.text then
-        local scopeLbl = PUIMerchant.GetScopeLabel and PUIMerchant:GetScopeLabel() or "All Categories"
-        if string.len(scopeLbl) > 24 then
-            scopeLbl = string.sub(scopeLbl, 1, 22) .. ".."
+    -- Update scope dropdown button label and icon
+    if scopeDropdownBtn then
+        if scopeDropdownBtn.text then
+            local scopeLbl = PUIMerchant.GetScopeLabel and PUIMerchant:GetScopeLabel() or "All Categories"
+            if string.len(scopeLbl) > 24 then
+                scopeLbl = string.sub(scopeLbl, 1, 22) .. ".."
+            end
+            scopeDropdownBtn.text:SetText(scopeLbl)
         end
-        scopeDropdownBtn.text:SetText(scopeLbl)
+        if scopeDropdownBtn.icon and PUIMerchant.GetScopeIcon then
+            local curClass = state.scopeClass or 0
+            local curSub = state.scopeSubClass or 0
+            local curKw = state.scopeName or ""
+            local icon = PUIMerchant:GetScopeIcon(curClass, curSub, curKw)
+            scopeDropdownBtn.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_Book_09")
+        end
     end
 
     if state.isScanning then

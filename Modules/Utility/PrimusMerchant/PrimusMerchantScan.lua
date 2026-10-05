@@ -349,6 +349,155 @@ PUIMerchant.CATEGORY_DATA = {
     },
 }
 
+PUIMerchant.DROPDOWN_MENU_ITEMS = {
+    -- Master / General
+    { label = "All Categories (Full Scan)", classId = 0, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Misc_Book_09" },
+    { label = "Active AH Browse Filter", isBrowse = true, icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+    { isSeparator = true },
+
+    -- TRADE GOODS
+    { isHeader = true, label = "TRADE GOODS", color = "ffd100" },
+    { label = "All Trade Goods", classId = 6, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Fabric_Silk_02" },
+    { label = "Herbalism & Herbs", classId = 6, subClassId = 6, keyword = "", icon = "Interface\\Icons\\INV_Misc_Herb_01" },
+    { label = "Skinning & Leather", classId = 6, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Misc_MonsterScales_01" },
+    { label = "Mining & Ores", classId = 6, subClassId = 0, keyword = "Ore", icon = "Interface\\Icons\\INV_Ore_Iron_01" },
+    { label = "Metal Bars & Smelting", classId = 6, subClassId = 0, keyword = "Bar", icon = "Interface\\Icons\\INV_Ingot_Steel" },
+    { label = "Cloth & Tailoring Bolts", classId = 6, subClassId = 5, keyword = "", icon = "Interface\\Icons\\INV_Fabric_Silk_02" },
+    { label = "Enchanting Materials", classId = 6, subClassId = 9, keyword = "", icon = "Interface\\Icons\\INV_Enchant_Disenchant" },
+    { label = "Elemental & Essences", classId = 6, subClassId = 7, keyword = "", icon = "Interface\\Icons\\Spell_Fire_Volcano" },
+    { label = "Engineering Parts", classId = 6, subClassId = 1, keyword = "", icon = "Interface\\Icons\\INV_Gizmo_02" },
+    { label = "Explosives", classId = 6, subClassId = 2, keyword = "", icon = "Interface\\Icons\\Spell_Fire_SelfDestruct" },
+    { isSeparator = true },
+
+    -- CONSUMABLES
+    { isHeader = true, label = "CONSUMABLES", color = "ffd100" },
+    { label = "All Consumables", classId = 4, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Potion_51" },
+    { label = "Health Potions", classId = 4, subClassId = 1, keyword = "Health Potion", icon = "Interface\\Icons\\INV_Potion_52" },
+    { label = "Mana Potions", classId = 4, subClassId = 1, keyword = "Mana Potion", icon = "Interface\\Icons\\INV_Potion_76" },
+    { label = "All Potions & Elixirs", classId = 4, subClassId = 1, keyword = "", icon = "Interface\\Icons\\INV_Potion_51" },
+    { label = "Flasks", classId = 4, subClassId = 2, keyword = "Flask", icon = "Interface\\Icons\\INV_Potion_41" },
+    { label = "Food & Drink", classId = 4, subClassId = 3, keyword = "", icon = "Interface\\Icons\\INV_Misc_Food_14" },
+    { label = "Bandages", classId = 4, subClassId = 5, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bandage_08" },
+    { label = "Scrolls", classId = 4, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Scroll_02" },
+    { label = "Item Enhancements", classId = 4, subClassId = 6, keyword = "", icon = "Interface\\Icons\\INV_Stone_SharpeningStone_01" },
+    { isSeparator = true },
+
+    -- WEAPONS (GEAR)
+    { isHeader = true, label = "WEAPONS (GEAR)", color = "ffd100" },
+    { label = "All Weapons", classId = 1, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Sword_04" },
+    { label = "1H Swords (One-Handed)", classId = 1, subClassId = 8, keyword = "", icon = "Interface\\Icons\\INV_Sword_04" },
+    { label = "2H Swords (Two-Handed)", classId = 1, subClassId = 9, keyword = "", icon = "Interface\\Icons\\INV_Sword_39" },
+    { label = "Daggers", classId = 1, subClassId = 13, keyword = "", icon = "Interface\\Icons\\INV_Weapon_ShortBlade_05" },
+    { label = "1H Axes", classId = 1, subClassId = 1, keyword = "", icon = "Interface\\Icons\\INV_Axe_02" },
+    { label = "2H Axes", classId = 1, subClassId = 2, keyword = "", icon = "Interface\\Icons\\INV_Axe_09" },
+    { label = "1H Maces", classId = 1, subClassId = 5, keyword = "", icon = "Interface\\Icons\\INV_Mace_01" },
+    { label = "2H Maces", classId = 1, subClassId = 6, keyword = "", icon = "Interface\\Icons\\INV_Mace_04" },
+    { label = "Bows & Crossbows", classId = 1, subClassId = 3, keyword = "", icon = "Interface\\Icons\\INV_Weapon_Bow_05" },
+    { label = "Guns", classId = 1, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Weapon_Rifle_01" },
+    { label = "Staves", classId = 1, subClassId = 10, keyword = "", icon = "Interface\\Icons\\INV_Staff_08" },
+    { label = "Polearms", classId = 1, subClassId = 7, keyword = "", icon = "Interface\\Icons\\INV_Spear_05" },
+    { label = "Wands", classId = 1, subClassId = 16, keyword = "", icon = "Interface\\Icons\\INV_Wand_01" },
+    { isSeparator = true },
+
+    -- ARMOR (GEAR)
+    { isHeader = true, label = "ARMOR (GEAR)", color = "ffd100" },
+    { label = "All Armor", classId = 2, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Chest_Chain_05" },
+    { label = "Cloth Armor", classId = 2, subClassId = 2, keyword = "", icon = "Interface\\Icons\\INV_Chest_Cloth_21" },
+    { label = "Leather Armor", classId = 2, subClassId = 3, keyword = "", icon = "Interface\\Icons\\INV_Chest_Leather_09" },
+    { label = "Mail Armor", classId = 2, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Chest_Chain_15" },
+    { label = "Plate Armor", classId = 2, subClassId = 5, keyword = "", icon = "Interface\\Icons\\INV_Chest_Plate03" },
+    { label = "Shields", classId = 2, subClassId = 6, keyword = "", icon = "Interface\\Icons\\INV_Shield_04" },
+    { label = "Librams / Totems / Idols", classId = 2, subClassId = 7, keyword = "", icon = "Interface\\Icons\\INV_Misc_Book_11" },
+    { isSeparator = true },
+
+    -- RECIPES
+    { isHeader = true, label = "RECIPES & PATTERNS", color = "ffd100" },
+    { label = "All Recipes", classId = 9, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Scroll_03" },
+    { label = "Alchemy Recipes", classId = 9, subClassId = 7, keyword = "", icon = "Interface\\Icons\\INV_Potion_51" },
+    { label = "Blacksmithing Plans", classId = 9, subClassId = 5, keyword = "", icon = "Interface\\Icons\\INV_Hammer_16" },
+    { label = "Enchanting Formulas", classId = 9, subClassId = 9, keyword = "", icon = "Interface\\Icons\\INV_Enchant_Disenchant" },
+    { label = "Engineering Schematics", classId = 9, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Gizmo_02" },
+    { label = "Leatherworking Patterns", classId = 9, subClassId = 2, keyword = "", icon = "Interface\\Icons\\INV_Misc_MonsterScales_01" },
+    { label = "Tailoring Patterns", classId = 9, subClassId = 3, keyword = "", icon = "Interface\\Icons\\INV_Fabric_Silk_02" },
+    { label = "Cooking Recipes", classId = 9, subClassId = 6, keyword = "", icon = "Interface\\Icons\\INV_Misc_Food_14" },
+    { label = "First Aid Books", classId = 9, subClassId = 8, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bandage_08" },
+    { isSeparator = true },
+
+    -- CONTAINERS & BAGS
+    { isHeader = true, label = "CONTAINERS & BAGS", color = "ffd100" },
+    { label = "All Bags", classId = 3, subClassId = 0, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bag_08" },
+    { label = "General Bags", classId = 3, subClassId = 1, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bag_08" },
+    { label = "Herb Bags", classId = 3, subClassId = 3, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bag_14" },
+    { label = "Enchanting Bags", classId = 3, subClassId = 4, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bag_19" },
+    { label = "Soul Bags", classId = 3, subClassId = 2, keyword = "", icon = "Interface\\Icons\\INV_Misc_Bag_10" },
+}
+
+function PUIMerchant:GetScopeIcon(classIdx, subClassIdx, nameFilter)
+    classIdx = tonumber(classIdx) or 0
+    subClassIdx = tonumber(subClassIdx) or 0
+    nameFilter = nameFilter or ""
+
+    if nameFilter == "Health Potion" then return "Interface\\Icons\\INV_Potion_52" end
+    if nameFilter == "Mana Potion" then return "Interface\\Icons\\INV_Potion_76" end
+    if nameFilter == "Flask" then return "Interface\\Icons\\INV_Potion_41" end
+    if nameFilter == "Ore" then return "Interface\\Icons\\INV_Ore_Iron_01" end
+    if nameFilter == "Bar" then return "Interface\\Icons\\INV_Ingot_Steel" end
+
+    if classIdx == 6 then
+        if subClassIdx == 6 then return "Interface\\Icons\\INV_Misc_Herb_01" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Misc_MonsterScales_01" end
+        if subClassIdx == 5 then return "Interface\\Icons\\INV_Fabric_Silk_02" end
+        if subClassIdx == 9 then return "Interface\\Icons\\INV_Enchant_Disenchant" end
+        if subClassIdx == 7 then return "Interface\\Icons\\Spell_Fire_Volcano" end
+        if subClassIdx == 1 then return "Interface\\Icons\\INV_Gizmo_02" end
+        if subClassIdx == 2 then return "Interface\\Icons\\Spell_Fire_SelfDestruct" end
+        return "Interface\\Icons\\INV_Fabric_Silk_02"
+    elseif classIdx == 4 then
+        if subClassIdx == 1 then return "Interface\\Icons\\INV_Potion_51" end
+        if subClassIdx == 2 then return "Interface\\Icons\\INV_Potion_41" end
+        if subClassIdx == 3 then return "Interface\\Icons\\INV_Misc_Food_14" end
+        if subClassIdx == 5 then return "Interface\\Icons\\INV_Misc_Bandage_08" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Scroll_02" end
+        if subClassIdx == 6 then return "Interface\\Icons\\INV_Stone_SharpeningStone_01" end
+        return "Interface\\Icons\\INV_Potion_51"
+    elseif classIdx == 1 then
+        if subClassIdx == 8 then return "Interface\\Icons\\INV_Sword_04" end
+        if subClassIdx == 9 then return "Interface\\Icons\\INV_Sword_39" end
+        if subClassIdx == 13 then return "Interface\\Icons\\INV_Weapon_ShortBlade_05" end
+        if subClassIdx == 1 or subClassIdx == 2 then return "Interface\\Icons\\INV_Axe_02" end
+        if subClassIdx == 5 or subClassIdx == 6 then return "Interface\\Icons\\INV_Mace_01" end
+        if subClassIdx == 3 or subClassIdx == 15 then return "Interface\\Icons\\INV_Weapon_Bow_05" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Weapon_Rifle_01" end
+        if subClassIdx == 10 then return "Interface\\Icons\\INV_Staff_08" end
+        if subClassIdx == 7 then return "Interface\\Icons\\INV_Spear_05" end
+        if subClassIdx == 16 then return "Interface\\Icons\\INV_Wand_01" end
+        return "Interface\\Icons\\INV_Sword_04"
+    elseif classIdx == 2 then
+        if subClassIdx == 2 then return "Interface\\Icons\\INV_Chest_Cloth_21" end
+        if subClassIdx == 3 then return "Interface\\Icons\\INV_Chest_Leather_09" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Chest_Chain_15" end
+        if subClassIdx == 5 then return "Interface\\Icons\\INV_Chest_Plate03" end
+        if subClassIdx == 6 then return "Interface\\Icons\\INV_Shield_04" end
+        if subClassIdx == 7 then return "Interface\\Icons\\INV_Misc_Book_11" end
+        return "Interface\\Icons\\INV_Chest_Chain_05"
+    elseif classIdx == 9 then
+        if subClassIdx == 7 then return "Interface\\Icons\\INV_Potion_51" end
+        if subClassIdx == 5 then return "Interface\\Icons\\INV_Hammer_16" end
+        if subClassIdx == 9 then return "Interface\\Icons\\INV_Enchant_Disenchant" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Gizmo_02" end
+        if subClassIdx == 2 then return "Interface\\Icons\\INV_Misc_MonsterScales_01" end
+        if subClassIdx == 3 then return "Interface\\Icons\\INV_Fabric_Silk_02" end
+        if subClassIdx == 6 then return "Interface\\Icons\\INV_Misc_Food_14" end
+        return "Interface\\Icons\\INV_Scroll_03"
+    elseif classIdx == 3 then
+        if subClassIdx == 3 then return "Interface\\Icons\\INV_Misc_Bag_14" end
+        if subClassIdx == 4 then return "Interface\\Icons\\INV_Misc_Bag_19" end
+        if subClassIdx == 2 then return "Interface\\Icons\\INV_Misc_Bag_10" end
+        return "Interface\\Icons\\INV_Misc_Bag_08"
+    end
+    return "Interface\\Icons\\INV_Misc_Book_09"
+end
+
 function PUIMerchant:GetClassName(classIdx)
     classIdx = tonumber(classIdx) or 0
     for _, cat in ipairs(self.CATEGORY_DATA) do
@@ -396,7 +545,7 @@ function PUIMerchant:GetScopeName(scope)
 end
 
 -- Set Target Scan Scope
-function PUIMerchant:SetScanScope(classIdx, subClassIdx, nameFilter, customLabel)
+function PUIMerchant:SetScanScope(classIdx, subClassIdx, nameFilter, customLabel, customIcon)
     currentScopeClass = tonumber(classIdx) or 0
     currentScopeSubClass = tonumber(subClassIdx) or 0
     currentScopeName = nameFilter or ""
