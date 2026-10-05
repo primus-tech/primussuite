@@ -305,15 +305,21 @@ function Options:BuildDeclarativePanel(parent, flare)
                 local optCount = table.getn(opt.options)
                 for o = 1, optCount do
                     if opt.options[o].value == curVal then
-                        curText = opt.options[o].text or opt.options[o].value
+                        curText = opt.options[o].text or opt.options[o].label or opt.options[o].value
                         break
                     end
                 end
             end
 
-            local selectBtn = Widgets:CreateButton(panel, curText .. " ▼", 220, 22)
+            local selectBtn = Widgets:CreateButton(panel, curText .. " ▼", 240, 22)
             selectBtn:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -4)
             selectBtn.opt = opt
+            if selectBtn.text then
+                selectBtn.text:ClearAllPoints()
+                selectBtn.text:SetPoint("LEFT", selectBtn, "LEFT", 10, 0)
+                selectBtn.text:SetPoint("RIGHT", selectBtn, "RIGHT", -10, 0)
+                selectBtn.text:SetJustifyH("LEFT")
+            end
             selectBtn:SetScript("OnClick", function()
                 if not this.opt or not this.opt.options then return end
                 local menuItems = {}
@@ -322,20 +328,24 @@ function Options:BuildDeclarativePanel(parent, flare)
                 for idx = 1, optCount do
                     local entry = this.opt.options[idx]
                     local eVal = entry.value
-                    local eText = entry.text or entry.value
+                    local eText = entry.text or entry.label or entry.value
                     local btnSelf = this
                     local optSelf = this.opt
                     table.insert(menuItems, {
                         text = eText,
                         checked = (eVal == currentV),
                         func = function()
-                            btnSelf.text:SetText(eText .. " ▼")
+                            if btnSelf.text then
+                                btnSelf.text:SetText(eText .. " ▼")
+                            end
                             if optSelf.set then
                                 optSelf.set(eVal)
                             end
                         end,
                         onClick = function()
-                            btnSelf.text:SetText(eText .. " ▼")
+                            if btnSelf.text then
+                                btnSelf.text:SetText(eText .. " ▼")
+                            end
                             if optSelf.set then
                                 optSelf.set(eVal)
                             end
@@ -343,7 +353,7 @@ function Options:BuildDeclarativePanel(parent, flare)
                     })
                 end
                 if Widgets and Widgets.ShowContextMenu then
-                    Widgets:ShowContextMenu(this, menuItems, { minWidth = 220 })
+                    Widgets:ShowContextMenu(this, menuItems, { minWidth = 240 })
                 end
             end)
 
@@ -638,7 +648,7 @@ function Options:RefreshModuleList()
 
         -- Checkbox state & handler
         local isEnabled = Primus:IsModuleEnabled(flare.id)
-        if flare.id == "System" or flare.id == "Options" or flare.id == "Skinner" then
+        if flare.id == "System" or flare.id == "Options" then
             isEnabled = true
             row.cb:Disable()
         else
@@ -660,7 +670,7 @@ function Options:RefreshModuleList()
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT", 4, 0)
             GameTooltip:ClearLines()
             local en = Primus:IsModuleEnabled(this.moduleId)
-            if this.moduleId == "System" or this.moduleId == "Options" or this.moduleId == "Skinner" then en = true end
+            if this.moduleId == "System" or this.moduleId == "Options" then en = true end
             GameTooltip:AddLine("Module State", 1.0, 0.82, 0.0)
             GameTooltip:AddLine(en and "Click to disable this module." or "Click to enable this module.", 0.85, 0.85, 0.85)
             GameTooltip:Show()
@@ -699,7 +709,7 @@ function Options:RefreshModuleList()
 
             local headerTitle = f.meta.title or ("Primus " .. (this.cleanName or f.id))
             local en = Primus:IsModuleEnabled(f.id)
-            if f.id == "System" or f.id == "Options" or f.id == "Skinner" then en = true end
+            if f.id == "System" or f.id == "Options" then en = true end
 
             GameTooltip:AddLine(headerTitle, 1.0, 0.82, 0.0)
             local statStr = en and "|cff33ff33[ Active ]|r" or "|cffff4444[ Disabled ]|r"

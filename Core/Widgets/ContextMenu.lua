@@ -250,30 +250,40 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
                 btn.separator:Hide()
                 btn:EnableMouse(not item.isTitle and not item.disabled)
 
+                -- Clear points on all sub-elements before re-anchoring
+                btn.label:ClearAllPoints()
+                btn.icon:ClearAllPoints()
+                btn.check:ClearAllPoints()
+                btn.rightLabel:ClearAllPoints()
+
+                local leftOffset = 8
                 -- Icon or Checkmark
                 if item.icon then
+                    btn.icon:SetPoint("LEFT", btn, "LEFT", 6, 0)
                     btn.icon:SetTexture(item.icon)
                     btn.icon:Show()
                     btn.check:Hide()
-                    btn.label:SetPoint("LEFT", btn, "LEFT", 24, 0)
+                    leftOffset = 26
                 elseif item.checked ~= nil then
                     btn.icon:Hide()
+                    btn.check:SetPoint("LEFT", btn, "LEFT", 6, 0)
                     if item.checked then
                         btn.check:SetText("|cff00ff00✓|r")
                         btn.check:Show()
                     else
                         btn.check:Hide()
                     end
-                    btn.label:SetPoint("LEFT", btn, "LEFT", 22, 0)
+                    leftOffset = 22
                 else
                     btn.icon:Hide()
                     btn.check:Hide()
-                    btn.label:SetPoint("LEFT", btn, "LEFT", 8, 0)
+                    leftOffset = 8
                 end
 
                 -- Label text & color
                 btn.label:Show()
-                btn.label:SetText(item.text or "")
+                local displayText = item.text or item.label or ""
+                btn.label:SetText(displayText)
 
                 if item.isTitle then
                     btn.label:SetTextColor(0.95, 0.78, 0.20, 1.0) -- Gold Title
@@ -284,23 +294,29 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
                         btn.itemColor = item.color
                         btn.label:SetTextColor(item.color.r or 1, item.color.g or 1, item.color.b or 1, item.color.a or 1)
                     else
-                        btn.label:SetText(Utils.ColorText(item.text or "", item.color))
+                        btn.label:SetText(Utils.ColorText(displayText, item.color))
                     end
                 else
                     btn.label:SetTextColor(0.9, 0.9, 0.9, 1.0)
                 end
 
                 -- Right Label
-                if item.rightText then
+                if item.rightText and item.rightText ~= "" then
+                    btn.rightLabel:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
                     btn.rightLabel:SetText(item.rightText)
                     btn.rightLabel:Show()
+                    local rW = btn.rightLabel:GetStringWidth() or 0
+                    btn.label:SetPoint("LEFT", btn, "LEFT", leftOffset, 0)
+                    btn.label:SetPoint("RIGHT", btn, "RIGHT", -(rW + 12), 0)
                 else
                     btn.rightLabel:Hide()
+                    btn.label:SetPoint("LEFT", btn, "LEFT", leftOffset, 0)
+                    btn.label:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
                 end
 
                 -- Measure string width
-                local strW = btn.label:GetStringWidth() or 80
-                if item.rightText then
+                local strW = (btn.label:GetStringWidth() or 80) + leftOffset
+                if item.rightText and item.rightText ~= "" then
                     strW = strW + (btn.rightLabel:GetStringWidth() or 0) + 16
                 end
                 if strW > maxTextWidth then
@@ -312,7 +328,7 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
         end
     end
 
-    local finalWidth = math.max(maxTextWidth + 36, options.minWidth or MIN_WIDTH)
+    local finalWidth = math.max(maxTextWidth + 30, options.minWidth or MIN_WIDTH)
     local finalHeight = visibleCount * ITEM_HEIGHT + 8
     f:SetWidth(finalWidth)
     f:SetHeight(finalHeight)
