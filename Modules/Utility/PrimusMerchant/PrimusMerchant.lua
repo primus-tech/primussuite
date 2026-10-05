@@ -424,7 +424,7 @@ function PUIMerchant:OnInitialize()
                 PUIMerchant:StopScan()
             elseif cmd == "scan" or cmd == "" then
                 if AuctionFrame and AuctionFrame:IsShown() then
-                    PUIMerchant:StartScan(0)
+                    PUIMerchant:StartScan()
                 else
                     DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Open the Auction House to run an AH scan.", "69ccf0"))
                 end

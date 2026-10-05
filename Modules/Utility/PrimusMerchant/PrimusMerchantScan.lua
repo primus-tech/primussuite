@@ -744,9 +744,14 @@ function PUIMerchant:StartScan(scopeClass, forceFresh, scopeSubClass, scopeName,
         return
     end
 
-    -- Update scope if provided
+    -- Update scope if provided or sync with active keyword box
     if scopeClass ~= nil then
         self:SetScanScope(scopeClass, scopeSubClass or 0, scopeName or "", customLabel)
+    elseif PUIMerchant.scopeKeywordBox then
+        local kw = Utils.Trim(PUIMerchant.scopeKeywordBox:GetText() or "")
+        if kw ~= "" and currentScopeName ~= kw then
+            self:SetScanScope(currentScopeClass, currentScopeSubClass, kw)
+        end
     end
 
     -- Check for checkpoint resumption
