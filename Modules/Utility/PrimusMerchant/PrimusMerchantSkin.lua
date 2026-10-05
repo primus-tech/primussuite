@@ -31,6 +31,9 @@ local scanStatusLabel = nil
 local scanCountdownLabel = nil
 local scanProgressBar = nil
 local pacingButtons = {}
+local scopeSelectorBtn = nil
+local scopeKeywordBox = nil
+local scopePills = {}
 
 -- =========================================================================
 -- AUCTION HOUSE FRAME DARK GLASS RESKIN
@@ -360,74 +363,154 @@ function PUIMerchant:CreateFlyoutDrawer()
     scanCountdownLabel:SetTextColor(1.0, 0.84, 0.0)
     scanCountdownLabel:SetText("")
 
-    -- Scope Selector Buttons
-    local scopeAllBtn = Widgets:CreateButton(flyoutFrame, "All", 40, 18, function() PUIMerchant:StartScan(0) end)
-    scopeAllBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -160)
+    -- Scope Selector Interactive Dropdown Button (Opens Hierarchical Category / Sub-Category Menu)
+    scopeSelectorBtn = Widgets:CreateButton(flyoutFrame, "🎯 Scope: All Categories ▼", 176, 20, function()
+        PUIMerchant:OpenScopeCategoryMenu(scopeSelectorBtn)
+    end)
+    scopeSelectorBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -160)
+    scopeSelectorBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 0.8)
+    PUIMerchant.scopeSelectorBtn = scopeSelectorBtn
 
-    local scopeMatsBtn = Widgets:CreateButton(flyoutFrame, "Trade", 42, 18, function() PUIMerchant:StartScan(6) end)
-    scopeMatsBtn:SetPoint("LEFT", scopeAllBtn, "RIGHT", 3, 0)
+    -- Scope Quick Preset Pills Rail (Left-Click: Select / Right-Click: Sub-Menu)
+    scopePills = {}
+    local presetPills = {
+        { id = 0, name = "All",     width = 27, label = "All Categories", tip = "All Categories" },
+        { id = 6, name = "Trade",   width = 33, label = "Trade Goods",    tip = "Trade Goods (Herbalism, Skinning, Mining, Cloth...)" },
+        { id = 4, name = "Pots",    width = 29, label = "Consumables",    tip = "Consumables (Health, Mana, Elixirs, Flasks...)" },
+        { id = 1, name = "Gear",    width = 29, label = "Weapons",        tip = "Gear (1H/2H Swords, Axes, Armor...)" },
+        { id = 9, name = "Recipes", width = 34, label = "Recipes",        tip = "Recipes (All Professions)" },
+        { id = 3, name = "Bags",    width = 24, label = "Containers",     tip = "Bags & Containers" },
+    }
+    local prevPill = nil
+    for _, pillInfo in ipairs(presetPills) do
+        local pId = pillInfo.id
+        local pName = pillInfo.name
+        local pTip = pillInfo.tip
+        local pLabel = pillInfo.label
 
-    local scopePotsBtn = Widgets:CreateButton(flyoutFrame, "Pots", 40, 18, function() PUIMerchant:StartScan(4) end)
-    scopePotsBtn:SetPoint("LEFT", scopeMatsBtn, "RIGHT", 3, 0)
+        local pillBtn = Widgets:CreateButton(flyoutFrame, pName, pillInfo.width, 16, function()
+            if arg1 == "RightButton" then
+                if pId == 0 then
+                    PUIMerchant:OpenScopeCategoryMenu(scopeSelectorBtn or pillBtn)
+                else
+                    PUIMerchant:OpenSubCategoryMenu(pId, scopeSelectorBtn or pillBtn)
+                end
+            else
+                PUIMerchant:SetScanScope(pId, 0, "", pLabel)
+                if scopeKeywordBox then scopeKeywordBox:SetText("") end
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to %s.", pLabel), "69ccf0"))
+            end
+        end)
+        pillBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        pillBtn:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(pLabel, 1, 0.84, 0)
+            GameTooltip:AddLine(pTip, 0.8, 0.8, 0.8, 1)
+            GameTooltip:AddLine("Left-Click: Set category scope", 0.4, 0.8, 1)
+            GameTooltip:AddLine("Right-Click: Choose sub-category", 0.2, 1, 0.4)
+            GameTooltip:Show()
+        end)
+        pillBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    local scopeGearBtn = Widgets:CreateButton(flyoutFrame, "Gear", 42, 18, function() PUIMerchant:StartScan(2) end)
-    scopeGearBtn:SetPoint("LEFT", scopePotsBtn, "RIGHT", 3, 0)
+        if not prevPill then
+            pillBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -182)
+        else
+            pillBtn:SetPoint("LEFT", prevPill, "RIGHT", 2, 0)
+        end
+        scopePills[pId] = pillBtn
+        prevPill = pillBtn
+    end
+    PUIMerchant.scopePills = scopePills
+
+    -- Scope Keyword Search EditBox
+    scopeKeywordBox = CreateFrame("EditBox", "PUIMerchantFlyoutKeywordBox", flyoutFrame)
+    scopeKeywordBox:SetWidth(176)
+    scopeKeywordBox:SetHeight(18)
+    scopeKeywordBox:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -200)
+    scopeKeywordBox:SetBackdrop(Media:Fetch("border", "1Pixel"))
+    scopeKeywordBox:SetBackdropColor(0.04, 0.04, 0.06, 0.90)
+    scopeKeywordBox:SetBackdropBorderColor(0.25, 0.25, 0.30, 1.0)
+    scopeKeywordBox:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+    scopeKeywordBox:SetAutoFocus(false)
+    scopeKeywordBox:SetTextInsets(6, 6, 0, 0)
+
+    local kwPlaceholder = scopeKeywordBox:CreateFontString(nil, "OVERLAY")
+    kwPlaceholder:SetFont(Media:Fetch("font", "Default"), 8, "OUTLINE")
+    kwPlaceholder:SetPoint("LEFT", scopeKeywordBox, "LEFT", 6, 0)
+    kwPlaceholder:SetTextColor(0.45, 0.45, 0.45)
+    kwPlaceholder:SetText("Filter keyword (e.g. Leather)...")
+
+    scopeKeywordBox:SetScript("OnEditFocusGained", function() kwPlaceholder:Hide() end)
+    scopeKeywordBox:SetScript("OnEditFocusLost", function()
+        if scopeKeywordBox:GetText() == "" then kwPlaceholder:Show() end
+    end)
+    scopeKeywordBox:SetScript("OnEnterPressed", function()
+        local txt = scopeKeywordBox:GetText() or ""
+        PUIMerchant:SetScanScope(PUIMerchant.scannerState.scopeClass or 0, PUIMerchant.scannerState.scopeSubClass or 0, txt)
+        scopeKeywordBox:ClearFocus()
+    end)
+    scopeKeywordBox:SetScript("OnEscapePressed", function()
+        scopeKeywordBox:SetText("")
+        PUIMerchant:SetScanScope(PUIMerchant.scannerState.scopeClass or 0, PUIMerchant.scannerState.scopeSubClass or 0, "")
+        scopeKeywordBox:ClearFocus()
+    end)
+    PUIMerchant.scopeKeywordBox = scopeKeywordBox
 
     -- Separator Line 2
     local sep2 = flyoutFrame:CreateTexture(nil, "ARTWORK")
     sep2:SetTexture(Media:Fetch("texture", "Solid") or "Interface\\Buttons\\WHITE8X8")
     sep2:SetVertexColor(0.20, 0.20, 0.25, 0.8)
     sep2:SetHeight(1)
-    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -184)
-    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -184)
+    sep2:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 8, -224)
+    sep2:SetPoint("TOPRIGHT", flyoutFrame, "TOPRIGHT", -8, -224)
 
     -- Section: Quick Shortcuts & Analytics
     local toolsLabel = flyoutFrame:CreateFontString(nil, "OVERLAY")
     toolsLabel:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-    toolsLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -192)
+    toolsLabel:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -230)
     toolsLabel:SetTextColor(0.9, 0.8, 0.4)
     toolsLabel:SetText("Market Tools & Explorer")
 
     -- Open Offline Explorer Button
-    local openExplorerBtn = Widgets:CreateButton(flyoutFrame, "Offline Market Explorer", 176, 22, function()
+    local openExplorerBtn = Widgets:CreateButton(flyoutFrame, "Offline Market Explorer", 176, 20, function()
         if PUIMerchant.ToggleMarketExplorer then
             PUIMerchant:ToggleMarketExplorer()
         end
     end)
-    openExplorerBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -208)
+    openExplorerBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -246)
     openExplorerBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 0.85)
 
     -- Open Deal Finder / Sniping Flyout Button
-    local openDealsBtn = Widgets:CreateButton(flyoutFrame, "Deal Finder & Sniper", 176, 22, function()
+    local openDealsBtn = Widgets:CreateButton(flyoutFrame, "Deal Finder & Sniper", 176, 20, function()
         PUIMerchant:ToggleDealFlyout()
     end)
-    openDealsBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -234)
+    openDealsBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -270)
     openDealsBtn:SetBackdropBorderColor(0.20, 0.85, 0.35, 0.85)
 
     -- Prune DB Button
-    local pruneBtn = Widgets:CreateButton(flyoutFrame, "Prune Old History (>14d)", 176, 20, function()
+    local pruneBtn = Widgets:CreateButton(flyoutFrame, "Prune Old History (>14d)", 176, 18, function()
         local purged = PUIMerchant:PruneOldHistory(nil, 14)
         DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Pruned %d stale entries older than 14 days.", purged), "69ccf0"))
     end)
-    pruneBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -260)
+    pruneBtn:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 9, -294)
 
     -- Toggles
     local qbCheck = Widgets:CreateCheckButton(flyoutFrame, "Shift+Click Quick Buyout", 12, function(selfChecked)
         PUIMerchant.db:Set("quickBuyout", selfChecked)
     end)
-    qbCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -286)
+    qbCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -316)
     qbCheck:SetChecked(PUIMerchant.db:Get("quickBuyout", true))
 
     local ttCheck = Widgets:CreateCheckButton(flyoutFrame, "Show Prices in Tooltips", 12, function(selfChecked)
         PUIMerchant.db:Set("showTooltipPrices", selfChecked)
     end)
-    ttCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -306)
+    ttCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -336)
     ttCheck:SetChecked(PUIMerchant.db:Get("showTooltipPrices", true))
 
     local sparkCheck = Widgets:CreateCheckButton(flyoutFrame, "Shift-Hover Sparkline", 12, function(selfChecked)
         PUIMerchant.db:Set("showTooltipSparkline", selfChecked)
     end)
-    sparkCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -326)
+    sparkCheck:SetPoint("TOPLEFT", flyoutFrame, "TOPLEFT", 10, -356)
     sparkCheck:SetChecked(PUIMerchant.db:Get("showTooltipSparkline", true))
 
     PUIMerchant.flyoutFrame = flyoutFrame
@@ -840,6 +923,29 @@ function PUIMerchant:UpdateFlyoutScannerUI()
         end
     end
 
+    -- Update scope selector button label
+    if scopeSelectorBtn then
+        local scopeLbl = PUIMerchant.GetScopeLabel and PUIMerchant:GetScopeLabel() or "All Categories"
+        if string.len(scopeLbl) > 22 then
+            scopeLbl = string.sub(scopeLbl, 1, 20) .. ".."
+        end
+        scopeSelectorBtn:SetText(string.format("🎯 %s ▼", scopeLbl))
+    end
+
+    -- Update scope pill highlights
+    local curScopeClass = (state.scopeClass ~= nil) and state.scopeClass or (PUIMerchant.scannerState and PUIMerchant.scannerState.scopeClass) or 0
+    if scopePills then
+        for pId, pBtn in pairs(scopePills) do
+            if pId == curScopeClass then
+                pBtn:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
+                pBtn:SetBackdropColor(0.18, 0.25, 0.35, 0.95)
+            else
+                pBtn:SetBackdropBorderColor(0.25, 0.25, 0.30, 0.8)
+                pBtn:SetBackdropColor(0.10, 0.10, 0.14, 0.90)
+            end
+        end
+    end
+
     if state.isScanning then
         if state.isPaused then
             scanActionButton:SetText("Resume Scan")
@@ -882,7 +988,7 @@ function PUIMerchant:UpdateFlyoutScannerUI()
             scanActionButton:SetText(string.format("Resume (p.%d)", resumePage))
             scanActionButton:SetBackdropBorderColor(0.20, 0.85, 0.35, 1.0)
             scanCountdownLabel:SetText("|cff1eff00[Checkpoint Available]|r")
-            scanStatusLabel:SetText(string.format("Saved: Page %d/%d (%s)", cp.page, cp.totalPages or 1, PUIMerchant:GetScopeName(cp.scope or 0)))
+            scanStatusLabel:SetText(string.format("Saved: Page %d/%d (%s)", cp.page, cp.totalPages or 1, cp.scopeLabel or PUIMerchant:GetScopeName(cp.scopeClass or cp.scope or 0)))
 
             if stopScanBtn then
                 stopScanBtn:SetWidth(86)
@@ -900,7 +1006,8 @@ function PUIMerchant:UpdateFlyoutScannerUI()
                 resetScanBtn:Show()
             end
         else
-            scanActionButton:SetText("Scan AH")
+            local shortScope = PUIMerchant.GetScopeShortName and PUIMerchant:GetScopeShortName() or "All"
+            scanActionButton:SetText("Scan: " .. shortScope)
             scanActionButton:SetBackdropBorderColor(1.0, 0.84, 0.0, 1.0)
             local pacingTag = (curMode == "ADAPTIVE") and "⚡ Adaptive (5s->1s)" or string.format("%0.1fs Fixed", PUIMerchant:GetPacingDelay())
             scanCountdownLabel:SetText(string.format("|cff888888Pacing: %s|r", pacingTag))

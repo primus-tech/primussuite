@@ -22,6 +22,7 @@ local DB    = Primus.DB
 local Utils = Primus.Utils
 local Time  = Primus.Time
 local Items = Primus.Items
+local Widgets = Primus.Widgets
 
 -- Scanner State Variables
 local isScanning = false
@@ -195,67 +196,393 @@ local function UpdateScannerState(statusMsg)
     end
 end
 
--- Get Category Scope Display Name
+-- Scope Variables
+local currentScopeClass = 0      -- 0 = All, 1..10
+local currentScopeSubClass = 0   -- 0 = All, 1..N
+local currentScopeName = ""      -- Optional text search filter (e.g. "Leather", "Swiftthistle")
+local currentScopeLabel = "All Categories"
+
+-- =========================================================================
+-- MASTER AUCTION HOUSE CATEGORY & SUB-CATEGORY REGISTRY
+-- =========================================================================
+
+PUIMerchant.CATEGORY_DATA = {
+    {
+        id = 0,
+        name = "All Categories",
+        icon = "Interface\\Icons\\INV_Misc_Book_09",
+    },
+    {
+        id = 6,
+        name = "Trade Goods",
+        icon = "Interface\\Icons\\INV_Fabric_Silk_02",
+        subclasses = {
+            { id = 0, name = "All Trade Goods" },
+            { id = 6, name = "Herbalism & Herbs" },
+            { id = 4, name = "Skinning & Leather" },
+            { id = 0, name = "Mining & Ores", keyword = "Ore" },
+            { id = 0, name = "Metal Bars & Smelting", keyword = "Bar" },
+            { id = 5, name = "Cloth & Tailoring Bolts", keyword = "Cloth" },
+            { id = 9, name = "Enchanting Materials" },
+            { id = 7, name = "Elemental & Essences" },
+            { id = 1, name = "Parts & Devices" },
+            { id = 2, name = "Explosives" },
+            { id = 8, name = "Other Trade Goods" },
+        }
+    },
+    {
+        id = 4,
+        name = "Consumables",
+        icon = "Interface\\Icons\\INV_Potion_51",
+        subclasses = {
+            { id = 0, name = "All Consumables" },
+            { id = 1, name = "Health Potions", keyword = "Health Potion" },
+            { id = 1, name = "Mana Potions", keyword = "Mana Potion" },
+            { id = 1, name = "All Potions & Elixirs", keyword = "Potion" },
+            { id = 2, name = "Flasks", keyword = "Flask" },
+            { id = 3, name = "Food & Drink" },
+            { id = 5, name = "Bandages" },
+            { id = 4, name = "Scrolls" },
+            { id = 6, name = "Item Enhancements (Oils/Stones)" },
+            { id = 7, name = "Other Consumables" },
+        }
+    },
+    {
+        id = 1,
+        name = "Weapons",
+        icon = "Interface\\Icons\\INV_Sword_04",
+        subclasses = {
+            { id = 0, name = "All Weapons" },
+            { id = 8, name = "1H Swords (One-Handed)" },
+            { id = 9, name = "2H Swords (Two-Handed)" },
+            { id = 13, name = "Daggers" },
+            { id = 1, name = "1H Axes" },
+            { id = 2, name = "2H Axes" },
+            { id = 5, name = "1H Maces" },
+            { id = 6, name = "2H Maces" },
+            { id = 7, name = "Polearms" },
+            { id = 10, name = "Staves" },
+            { id = 3, name = "Bows" },
+            { id = 4, name = "Guns" },
+            { id = 15, name = "Crossbows" },
+            { id = 16, name = "Wands" },
+            { id = 11, name = "Fist Weapons" },
+            { id = 14, name = "Thrown" },
+            { id = 17, name = "Fishing Poles" },
+            { id = 12, name = "Miscellaneous Weapons" },
+        }
+    },
+    {
+        id = 2,
+        name = "Armor",
+        icon = "Interface\\Icons\\INV_Chest_Chain_05",
+        subclasses = {
+            { id = 0, name = "All Armor" },
+            { id = 2, name = "Cloth Armor" },
+            { id = 3, name = "Leather Armor" },
+            { id = 4, name = "Mail Armor" },
+            { id = 5, name = "Plate Armor" },
+            { id = 6, name = "Shields" },
+            { id = 7, name = "Librams / Idols / Totems" },
+            { id = 1, name = "Miscellaneous Armor" },
+        }
+    },
+    {
+        id = 9,
+        name = "Recipes",
+        icon = "Interface\\Icons\\INV_Scroll_03",
+        subclasses = {
+            { id = 0, name = "All Recipes" },
+            { id = 7, name = "Alchemy" },
+            { id = 5, name = "Blacksmithing" },
+            { id = 9, name = "Enchanting" },
+            { id = 4, name = "Engineering" },
+            { id = 2, name = "Leatherworking" },
+            { id = 3, name = "Tailoring" },
+            { id = 6, name = "Cooking" },
+            { id = 8, name = "First Aid" },
+            { id = 1, name = "Books" },
+            { id = 10, name = "Fishing" },
+        }
+    },
+    {
+        id = 3,
+        name = "Containers & Bags",
+        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+        subclasses = {
+            { id = 0, name = "All Bags" },
+            { id = 1, name = "General Bags" },
+            { id = 3, name = "Herb Bags" },
+            { id = 4, name = "Enchanting Bags" },
+            { id = 2, name = "Soul Bags" },
+            { id = 5, name = "Engineering Bags" },
+        }
+    },
+    {
+        id = 7,
+        name = "Projectiles & Ammo",
+        icon = "Interface\\Icons\\INV_Ammo_Arrow_02",
+        subclasses = {
+            { id = 0, name = "All Projectiles" },
+            { id = 1, name = "Arrows" },
+            { id = 2, name = "Bullets" },
+        }
+    },
+    {
+        id = 8,
+        name = "Quest Items",
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+    },
+    {
+        id = 10,
+        name = "Miscellaneous",
+        icon = "Interface\\Icons\\INV_Misc_Gear_01",
+        subclasses = {
+            { id = 0, name = "All Miscellaneous" },
+            { id = 1, name = "Junk" },
+            { id = 2, name = "Reagents" },
+            { id = 3, name = "Pet" },
+            { id = 4, name = "Holiday" },
+            { id = 6, name = "Mount" },
+            { id = 5, name = "Other" },
+        }
+    },
+}
+
+function PUIMerchant:GetClassName(classIdx)
+    classIdx = tonumber(classIdx) or 0
+    for _, cat in ipairs(self.CATEGORY_DATA) do
+        if cat.id == classIdx then
+            return cat.name
+        end
+    end
+    return (classIdx == 0) and "All Categories" or ("Category " .. classIdx)
+end
+
+function PUIMerchant:GetSubClassName(classIdx, subClassIdx)
+    classIdx = tonumber(classIdx) or 0
+    subClassIdx = tonumber(subClassIdx) or 0
+    for _, cat in ipairs(self.CATEGORY_DATA) do
+        if cat.id == classIdx and cat.subclasses then
+            for _, sc in ipairs(cat.subclasses) do
+                if sc.id == subClassIdx then
+                    return sc.name
+                end
+            end
+        end
+    end
+    return (subClassIdx == 0) and "All" or ("Subclass " .. subClassIdx)
+end
+
+function PUIMerchant:GetScopeLabel()
+    return currentScopeLabel or "All Categories"
+end
+
+function PUIMerchant:GetScopeShortName()
+    if currentScopeName and currentScopeName ~= "" then
+        return currentScopeName
+    elseif currentScopeSubClass > 0 then
+        return self:GetSubClassName(currentScopeClass, currentScopeSubClass)
+    elseif currentScopeClass > 0 then
+        return self:GetClassName(currentScopeClass)
+    else
+        return "All"
+    end
+end
+
+-- Get Category Scope Display Name (Backwards compatible)
 function PUIMerchant:GetScopeName(scope)
-    scope = tonumber(scope) or 0
-    if scope == 6 then return "Trade Goods"
-    elseif scope == 4 then return "Consumables"
-    elseif scope == 1 then return "Weapons"
-    elseif scope == 2 then return "Armor"
-    else return "All Categories" end
+    return self:GetClassName(scope)
 end
 
--- Retrieve Active Checkpoint (Valid for current Realm & AH Faction within 12 hours)
+-- Set Target Scan Scope
+function PUIMerchant:SetScanScope(classIdx, subClassIdx, nameFilter, customLabel)
+    currentScopeClass = tonumber(classIdx) or 0
+    currentScopeSubClass = tonumber(subClassIdx) or 0
+    currentScopeName = nameFilter or ""
+    
+    if customLabel then
+        currentScopeLabel = customLabel
+    elseif currentScopeClass == 0 and (not currentScopeName or currentScopeName == "") then
+        currentScopeLabel = "All Categories"
+    elseif currentScopeName and currentScopeName ~= "" then
+        if currentScopeClass > 0 then
+            currentScopeLabel = string.format("%s: \"%s\"", self:GetClassName(currentScopeClass), currentScopeName)
+        else
+            currentScopeLabel = string.format("Search: \"%s\"", currentScopeName)
+        end
+    elseif currentScopeSubClass > 0 then
+        currentScopeLabel = string.format("%s > %s", self:GetClassName(currentScopeClass), self:GetSubClassName(currentScopeClass, currentScopeSubClass))
+    else
+        currentScopeLabel = self:GetClassName(currentScopeClass)
+    end
+
+    PUIMerchant.scannerState.scopeClass = currentScopeClass
+    PUIMerchant.scannerState.scopeSubClass = currentScopeSubClass
+    PUIMerchant.scannerState.scopeName = currentScopeName
+    PUIMerchant.scannerState.scopeLabel = currentScopeLabel
+
+    if self.UpdateFlyoutScannerUI then
+        self:UpdateFlyoutScannerUI()
+    end
+end
+
+-- Open Interactive Scope Selection Context Menu
+function PUIMerchant:OpenScopeCategoryMenu(anchor)
+    local items = {
+        { text = "SELECT AH SCAN CATEGORY", isTitle = true },
+        {
+            text = "🌐 All Categories (Full Scan)",
+            func = function()
+                PUIMerchant:SetScanScope(0, 0, "", "All Categories")
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Target scan scope set to All Categories (Full AH).", "69ccf0"))
+            end,
+            checked = (currentScopeClass == 0 and (not currentScopeName or currentScopeName == "")),
+        },
+        { isSeparator = true },
+    }
+
+    for _, cat in ipairs(self.CATEGORY_DATA) do
+        if cat.id > 0 then
+            local cId = cat.id
+            local cName = cat.name
+            local cIcon = cat.icon
+            local hasSub = cat.subclasses and table.getn(cat.subclasses) > 1
+
+            table.insert(items, {
+                text = cName,
+                icon = cIcon,
+                rightText = hasSub and "Sub-menus >" or "",
+                func = function()
+                    if hasSub then
+                        PUIMerchant:OpenSubCategoryMenu(cId, anchor)
+                    else
+                        PUIMerchant:SetScanScope(cId, 0, "", cName)
+                        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to %s.", cName), "69ccf0"))
+                    end
+                end,
+                checked = (currentScopeClass == cId and currentScopeSubClass == 0 and (not currentScopeName or currentScopeName == "")),
+            })
+        end
+    end
+
+    table.insert(items, { isSeparator = true })
+    table.insert(items, {
+        text = "🎯 Use Current AH Browse Filter",
+        func = function()
+            PUIMerchant:UseBlizzardBrowseScope()
+        end,
+    })
+
+    Widgets:ShowContextMenu(anchor, items)
+end
+
+-- Open Sub-Category Context Menu
+function PUIMerchant:OpenSubCategoryMenu(classIdx, anchor)
+    classIdx = tonumber(classIdx) or 0
+    local cat = nil
+    for _, c in ipairs(self.CATEGORY_DATA) do
+        if c.id == classIdx then cat = c; break end
+    end
+    if not cat or not cat.subclasses then return end
+
+    local items = {
+        { text = string.upper(cat.name) .. " SUB-CATEGORIES", isTitle = true },
+        {
+            text = "📁 All " .. cat.name,
+            icon = cat.icon,
+            func = function()
+                PUIMerchant:SetScanScope(classIdx, 0, "", cat.name)
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to All %s.", cat.name), "69ccf0"))
+            end,
+            checked = (currentScopeClass == classIdx and currentScopeSubClass == 0 and (not currentScopeName or currentScopeName == "")),
+        },
+        { isSeparator = true },
+    }
+
+    for _, sc in ipairs(cat.subclasses) do
+        if sc.id > 0 or (sc.keyword and sc.keyword ~= "") then
+            local scId = sc.id
+            local scName = sc.name
+            local scKw = sc.keyword or ""
+            local label = string.format("%s > %s", cat.name, scName)
+            table.insert(items, {
+                text = scName,
+                rightText = (scKw ~= "") and string.format("[\"%s\"]", scKw) or "",
+                func = function()
+                    PUIMerchant:SetScanScope(classIdx, scId, scKw, label)
+                    DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to %s.", label), "69ccf0"))
+                end,
+                checked = (currentScopeClass == classIdx and currentScopeSubClass == scId and (scKw == "" or currentScopeName == scKw)),
+            })
+        end
+    end
+
+    table.insert(items, { isSeparator = true })
+    table.insert(items, {
+        text = "« Back to All Categories",
+        func = function()
+            PUIMerchant:OpenScopeCategoryMenu(anchor)
+        end,
+    })
+
+    Widgets:ShowContextMenu(anchor, items)
+end
+
+-- Use Blizzard Browse Selection
+function PUIMerchant:UseBlizzardBrowseScope()
+    local text = BrowseName and BrowseName:GetText() or ""
+    text = Utils.Trim(text)
+
+    if text ~= "" then
+        PUIMerchant:SetScanScope(0, 0, text, string.format("Filter: \"%s\"", text))
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Target scan scope set to search query \"%s\".", text), "69ccf0"))
+    else
+        PUIMerchant:SetScanScope(0, 0, "", "All Categories")
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Target scan scope set to All Categories.", "69ccf0"))
+    end
+end
+
+-- =========================================================================
+-- SCAN CHECKPOINT MANAGEMENT
+-- =========================================================================
+
 function PUIMerchant:GetScanCheckpoint()
-    if not self.db or not self.db.data then return nil end
-    local cp = self.db.data.scanCheckpoint
-    if not cp or not cp.page or cp.page <= 0 then return nil end
-
-    local realm = GetRealmName() or "Default"
-    local ahType = self:GetCurrentAHType()
-    if cp.realm ~= realm or cp.ahType ~= ahType then
-        return nil
+    if not self.db then return nil end
+    local cp = self.db:Get("scanCheckpoint", nil)
+    if cp and cp.page and cp.page > 0 then
+        return cp
     end
-
-    local now = Time:GetServerTimestamp()
-    -- Checkpoints expire after 12 hours (43,200s)
-    if (now - (cp.timestamp or 0)) > 43200 then
-        self.db.data.scanCheckpoint = nil
-        return nil
-    end
-
-    return cp
+    return nil
 end
 
--- Save Active Scan Progress to SavedVariables
 function PUIMerchant:SaveScanCheckpoint()
-    if not self.db or not self.db.data then return end
-    if scanPage <= 0 then return end
-
-    local realm = GetRealmName() or "Default"
-    local ahType = self:GetCurrentAHType()
-    self.db.data.scanCheckpoint = {
-        realm = realm,
-        ahType = ahType,
+    if not self.db or not isScanning or scanPage <= 0 then return end
+    self.db:Set("scanCheckpoint", {
         page = scanPage,
         totalPages = totalPages,
-        scope = currentScope or 0,
-        totalCataloged = totalAuctionsCataloged or 0,
-        timestamp = Time:GetServerTimestamp(),
-    }
+        totalCataloged = totalAuctionsCataloged,
+        scopeClass = currentScopeClass,
+        scopeSubClass = currentScopeSubClass,
+        scopeName = currentScopeName,
+        scopeLabel = currentScopeLabel,
+        savedAt = Time:GetServerTimestamp(),
+    })
 end
 
--- Clear Saved Checkpoint on Full Completion or Fresh Reset
 function PUIMerchant:ClearScanCheckpoint()
-    if self.db and self.db.data then
-        self.db.data.scanCheckpoint = nil
+    if self.db then
+        self.db:Set("scanCheckpoint", nil)
     end
 end
 
--- Start, Resume, or Fresh Scan
-function PUIMerchant:StartScan(scopeCategory, forceFresh)
+-- =========================================================================
+-- START SCAN
+-- =========================================================================
+
+function PUIMerchant:StartScan(scopeClass, forceFresh, scopeSubClass, scopeName, customLabel)
     if not AuctionFrame or not AuctionFrame:IsShown() then
-        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Open the Auction House to run an AH scan.", "ffbb33"))
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIMerchant]: Please open the Auction House to scan.", "ff5555"))
         return
     end
 
@@ -268,80 +595,53 @@ function PUIMerchant:StartScan(scopeCategory, forceFresh)
         return
     end
 
-    local ahType = self:GetCurrentAHType()
-    local cp = (not forceFresh) and self:GetScanCheckpoint() or nil
+    -- Update scope if provided
+    if scopeClass ~= nil then
+        self:SetScanScope(scopeClass, scopeSubClass or 0, scopeName or "", customLabel)
+    end
 
+    -- Check for checkpoint resumption
+    local cp = not forceFresh and self:GetScanCheckpoint() or nil
     if cp and cp.page and cp.page > 0 then
-        -- Resume from checkpoint with a 2-page safety overlap rewind
-        local rewindPage = math.max(0, cp.page - 2)
-        scanPage = rewindPage
-        currentScope = cp.scope or scopeCategory or 0
+        scanPage = math.max(0, cp.page - 1)
         totalPages = cp.totalPages or 1
         totalAuctionsCataloged = cp.totalCataloged or 0
-        pageRetries = 0
-        isScanning = true
-        isPaused = false
-        isWaitingForServerGate = false
-        measuredAvgCycleTime = 0
-        measuredServerGate = 0
-        pagesSampled = 0
-
-        local now = GetTime()
-        local pacingDelay = self:GetPacingDelay()
-
-        local scopeName = self:GetScopeName(currentScope)
-        if CanSendAuctionQuery() then
-            isWaitingForNextPage = false
-            queryDispatchTime = now
-            lastQueryTime = now
-            pageCooldownEnd = now + pacingDelay
-            UpdateScannerState(string.format("Resuming at Page %d/%d (%s)...", scanPage + 1, totalPages, scopeName))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Resuming Scan at Page %d/%d (2-page safety rewind) [%s AH - %s - %s]...", scanPage + 1, totalPages, ahType, scopeName, PUIMerchant.scannerState.pacingMode), "69ccf0"))
-            QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
-        else
-            isWaitingForNextPage = true
-            isWaitingForServerGate = true
-            queryDispatchTime = 0
-            lastQueryTime = now
-            pageCooldownEnd = now
-            UpdateScannerState(string.format("Queued Resume at Page %d/%d (Server Throttle)...", scanPage + 1, totalPages))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Queued resume at page %d as soon as server throttle clears...", scanPage + 1), "ffbb33"))
+        if cp.scopeClass ~= nil then
+            currentScopeClass = cp.scopeClass
+            currentScopeSubClass = cp.scopeSubClass or 0
+            currentScopeName = cp.scopeName or ""
+            currentScopeLabel = cp.scopeLabel or self:GetClassName(currentScopeClass)
         end
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Resuming %s scan from checkpoint at page %d/%d...", currentScopeLabel, scanPage + 1, totalPages), "69ccf0"))
     else
-        self:ClearScanCheckpoint()
-        currentScope = scopeCategory or 0
-        isScanning = true
-        isPaused = false
         scanPage = 0
         totalPages = 1
         totalAuctionsCataloged = 0
         pageRetries = 0
-        isWaitingForServerGate = false
-        measuredAvgCycleTime = 0
-        measuredServerGate = 0
-        pagesSampled = 0
+        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Starting fresh %s scan...", currentScopeLabel), "69ccf0"))
+    end
 
-        local now = GetTime()
-        local pacingDelay = self:GetPacingDelay()
+    isScanning = true
+    isPaused = false
+    isWaitingForNextPage = false
+    isWaitingForServerGate = false
+    consecutiveSuccessPages = 0
+    pagesSampled = 0
+    measuredAvgCycleTime = 0
+    measuredServerGate = 0
 
-        local scopeName = self:GetScopeName(currentScope)
-        if CanSendAuctionQuery() then
-            isWaitingForNextPage = false
-            queryDispatchTime = now
-            lastQueryTime = now
-            pageCooldownEnd = now + pacingDelay
-            UpdateScannerState(string.format("Requesting Page 1 (%s - %s)...", scopeName, ahType))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: Starting %s AH Scan [%s AH - %s] (Pacing: %0.1fs)...", PUIMerchant.scannerState.pacingMode, ahType, scopeName, pacingDelay), "69ccf0"))
-            QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, 0, 0, 0)
-        else
-            isWaitingForNextPage = true
-            isWaitingForServerGate = true
-            queryDispatchTime = 0
-            lastQueryTime = now
-            pageCooldownEnd = now
-            UpdateScannerState(string.format("Queueing Scan [%s AH] (Waiting on server cooldown)...", ahType))
-            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[PUIMerchant]: AH query busy. Queued page 1 to send as soon as cooldown clears...", ahType), "ffbb33"))
-        end
+    local now = GetTime()
+    queryDispatchTime = now
+    lastQueryTime = now
+    pageCooldownEnd = now + self:GetPacingDelay()
+
+    UpdateScannerState(string.format("Querying Page %d...", scanPage + 1))
+
+    if CanSendAuctionQuery() then
+        QueryAuctionItems(currentScopeName or "", 0, 0, 0, currentScopeClass or 0, currentScopeSubClass or 0, scanPage, 0, 0)
+    else
+        isWaitingForNextPage = true
+        isWaitingForServerGate = true
     end
 end
 
@@ -569,7 +869,7 @@ function PUIMerchant:InitScannerTicker()
 
                     local rateStr = (measuredAvgCycleTime > 0) and string.format("%0.1fs/p", measuredAvgCycleTime) or string.format("%0.1fs", PUIMerchant:GetPacingDelay())
                     UpdateScannerState(string.format("Querying Page %d/%d (%d items • %s)...", scanPage + 1, totalPages, totalAuctionsCataloged, rateStr))
-                    QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
+                    QueryAuctionItems(currentScopeName or "", 0, 0, 0, currentScopeClass or 0, currentScopeSubClass or 0, scanPage, 0, 0)
                 else
                     isWaitingForServerGate = true
                     local serverWait = (queryDispatchTime > 0) and (now - queryDispatchTime) or 0
@@ -588,7 +888,7 @@ function PUIMerchant:InitScannerTicker()
                     pageCooldownEnd = now + PUIMerchant:GetPacingDelay()
                     if CanSendAuctionQuery() then
                         UpdateScannerState(string.format("Retrying Page %d/%d (attempt %d)...", scanPage + 1, totalPages, pageRetries))
-                        QueryAuctionItems("", 0, 0, 0, (currentScope and currentScope > 0) and currentScope or 0, 0, scanPage, 0, 0)
+                        QueryAuctionItems(currentScopeName or "", 0, 0, 0, currentScopeClass or 0, currentScopeSubClass or 0, scanPage, 0, 0)
                     else
                         isWaitingForNextPage = true
                         isWaitingForServerGate = true
