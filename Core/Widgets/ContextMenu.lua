@@ -36,8 +36,8 @@ local function CreateContextMenuFrame()
 
     -- Click Catcher (Full Screen transparent overlay to close on outside click)
     local catcher = CreateFrame("Button", "Primus_ContextMenu_Catcher", UIParent)
-    catcher:SetFrameStrata("DIALOG")
-    catcher:SetFrameLevel(140)
+    catcher:SetFrameStrata("TOOLTIP")
+    catcher:SetFrameLevel(240)
     catcher:SetAllPoints(UIParent)
     catcher:EnableMouse(true)
     catcher:Hide()
@@ -48,8 +48,8 @@ local function CreateContextMenuFrame()
 
     -- Master Floating Menu Container
     local f = CreateFrame("Frame", "Primus_ContextMenu", UIParent)
-    f:SetFrameStrata("DIALOG")
-    f:SetFrameLevel(150)
+    f:SetFrameStrata("TOOLTIP")
+    f:SetFrameLevel(250)
     f:SetWidth(MIN_WIDTH)
     f:SetHeight(100)
     f:EnableMouse(true)
@@ -316,6 +316,12 @@ function Widgets:ShowContextMenu(anchorOrPoint, items, options)
         f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     end
 
-    if catcherFrame then catcherFrame:Show() end
+    if catcherFrame then
+        catcherFrame:SetFrameStrata("TOOLTIP")
+        catcherFrame:SetFrameLevel(240)
+        catcherFrame:Show()
+    end
+    f:SetFrameStrata("TOOLTIP")
+    f:SetFrameLevel(250)
     f:Show()
 end
