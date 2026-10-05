@@ -848,11 +848,13 @@ function PUIMerchant:UpdateFlyoutScannerUI()
         else
             scanActionButton:SetText("Pause Scan")
             scanActionButton:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
-            local pacingTag = (state.pacingMode == "ADAPTIVE") and string.format("⚡ %0.1fs Step-Down", state.currentCooldown) or string.format("%0.1fs", state.currentCooldown)
-            if state.remainingCooldown > 0 then
-                scanCountdownLabel:SetText(string.format("Next: |cffffd100%ds|r (%s) • ETA: |cff69ccf0%s|r", state.remainingCooldown, pacingTag, state.etaText or "--"))
+            local rateStr = (state.measuredPageRate and state.measuredPageRate > 0) and string.format("%0.1fs/p", state.measuredPageRate) or string.format("%0.1fs", state.currentCooldown)
+            if state.isWaitingServerGate then
+                scanCountdownLabel:SetText(string.format("|cffff9900[Server Gate: %s]|r • ETA: |cff69ccf0%s|r", rateStr, state.etaText or "--"))
+            elseif state.remainingCooldown > 0 then
+                scanCountdownLabel:SetText(string.format("Next: |cffffd100%ds|r (⚡ %s) • ETA: |cff69ccf0%s|r", state.remainingCooldown, rateStr, state.etaText or "--"))
             else
-                scanCountdownLabel:SetText(string.format("|cff1eff00Querying AH...|r (%s)", pacingTag))
+                scanCountdownLabel:SetText(string.format("|cff1eff00Querying AH...|r (⚡ %s)", rateStr))
             end
         end
 

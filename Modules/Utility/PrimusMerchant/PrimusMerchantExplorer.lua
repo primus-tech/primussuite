@@ -40,6 +40,21 @@ local detailGraphFrame = nil
 local detailTextLeft = nil
 local detailTextRight = nil
 
+-- Sorting State
+local currentSortCol = "NAME"
+local currentSortDir = "ASC" -- "ASC" or "DESC"
+local headerButtons = {}
+
+local HEADER_DEFINITIONS = {
+    { key = "NAME",   title = "Item Name",   width = 190, align = "LEFT",   offX = 28  },
+    { key = "VOL",    title = "Vol",         width = 40,  align = "RIGHT",  offX = 220 },
+    { key = "MIN",    title = "Min Buyout",  width = 85,  align = "RIGHT",  offX = 265 },
+    { key = "MEDIAN", title = "Core Median", width = 85,  align = "RIGHT",  offX = 355 },
+    { key = "AVG",    title = "7d Run Avg",  width = 85,  align = "RIGHT",  offX = 445 },
+    { key = "MVPCT",  title = "MV %",        width = 50,  align = "RIGHT",  offX = 535 },
+    { key = "TREND",  title = "7-Day Trend", width = 110, align = "CENTER", offX = 595 },
+}
+
 -- Quality Mapping
 local QUALITY_OPTIONS = {
     { text = "All Qualities", value = 0 },
@@ -58,6 +73,112 @@ local CATEGORY_OPTIONS = {
 }
 
 local ahScopeFilter = "CURRENT" -- "CURRENT", "Faction", "Neutral"
+
+-- =========================================================================
+-- SORTING ENGINE & HELPERS
+-- =========================================================================
+
+local function GetTotalVolume(pData)
+    if not pData then return 0 end
+    local totalVol = 0
+    if pData.history then
+        for _, h in pairs(pData.history) do
+            totalVol = totalVol + (h.totalVolume or 0)
+        end
+    end
+    if totalVol == 0 then totalVol = pData.totalVolume or 1 end
+    return totalVol
+end
+
+local function GetItemMVPct(pData)
+    if not pData then return 100 end
+    local minB = pData.latestMinBuyout or 0
+    local runMed = pData.runningMedian7d or pData.runningAvg7d or 0
+    if runMed > 0 and minB > 0 then
+        return math.floor((minB / runMed) * 100)
+    end
+    return 100
+end
+
+function PUIMerchant:SortExplorerList()
+    local col = currentSortCol or "NAME"
+    local dir = currentSortDir or "ASC"
+
+    table.sort(filteredItemList, function(a, b)
+        local valA, valB
+        if col == "NAME" then
+            valA = string.lower(a.name or "")
+            valB = string.lower(b.name or "")
+        elseif col == "VOL" then
+            valA = GetTotalVolume(a)
+            valB = GetTotalVolume(b)
+        elseif col == "MIN" then
+            valA = a.latestMinBuyout or 0
+            valB = b.latestMinBuyout or 0
+        elseif col == "MEDIAN" then
+            valA = a.runningMedian7d or a.latestMinBuyout or 0
+            valB = b.runningMedian7d or b.latestMinBuyout or 0
+        elseif col == "AVG" then
+            valA = a.runningAvg7d or a.latestMinBuyout or 0
+            valB = b.runningAvg7d or b.latestMinBuyout or 0
+        elseif col == "MVPCT" then
+            valA = GetItemMVPct(a)
+            valB = GetItemMVPct(b)
+        else
+            valA = string.lower(a.name or "")
+            valB = string.lower(b.name or "")
+        end
+
+        if valA == valB then
+            return string.lower(a.name or "") < string.lower(b.name or "")
+        end
+
+        if dir == "ASC" then
+            return valA < valB
+        else
+            return valA > valB
+        end
+    end)
+end
+
+function PUIMerchant:UpdateHeaderLabels()
+    for _, def in ipairs(HEADER_DEFINITIONS) do
+        local btn = headerButtons[def.key]
+        if btn and btn.label then
+            if def.key == currentSortCol then
+                local arrow = (currentSortDir == "ASC") and "▲" or "▼"
+                btn.label:SetText(string.format("|cff20c0ff%s %s|r", def.title, arrow))
+                if btn.SetBackdropBorderColor then
+                    btn:SetBackdropBorderColor(0.20, 0.75, 1.0, 0.8)
+                end
+            else
+                btn.label:SetText(string.format("|cff88aacc%s|r", def.title))
+                if btn.SetBackdropBorderColor then
+                    btn:SetBackdropBorderColor(0.20, 0.20, 0.25, 0.0)
+                end
+            end
+        end
+    end
+end
+
+function PUIMerchant:SetExplorerSort(colKey)
+    if colKey == "TREND" then return end
+
+    if currentSortCol == colKey then
+        currentSortDir = (currentSortDir == "ASC") and "DESC" or "ASC"
+    else
+        currentSortCol = colKey
+        if colKey == "VOL" or colKey == "MIN" or colKey == "MEDIAN" or colKey == "AVG" then
+            currentSortDir = "DESC" -- numeric defaults to highest first
+        else
+            currentSortDir = "ASC"  -- name / mv % defaults to lowest/A-Z first
+        end
+    end
+
+    self:SortExplorerList()
+    self:UpdateHeaderLabels()
+    self:UpdateExplorerTable()
+end
 
 -- =========================================================================
 -- FILTERING & DATA REFRESH
@@ -148,21 +269,8 @@ function PUIMerchant:RefreshExplorerData()
         end
     end
 
-    -- Sort: Sniping tab sorts by largest discount % (lowest MV %), Catalog sorts by name
-    if activeTab == "SNIPER" then
-        table.sort(filteredItemList, function(a, b)
-            local medA = a.runningMedian7d or a.runningAvg7d or 1
-            local medB = b.runningMedian7d or b.runningAvg7d or 1
-            local mvA = (a.latestMinBuyout or 0) / (medA > 0 and medA or 1)
-            local mvB = (b.latestMinBuyout or 0) / (medB > 0 and medB or 1)
-            return mvA < mvB
-        end)
-    else
-        table.sort(filteredItemList, function(a, b)
-            return (a.name or "") < (b.name or "")
-        end)
-    end
-
+    self:SortExplorerList()
+    self:UpdateHeaderLabels()
     self:UpdateExplorerTable()
 end
 
@@ -378,6 +486,10 @@ function PUIMerchant:CreateMarketExplorerWindow()
         activeTab = "CATALOG"
         this:SetBackdropBorderColor(0.20, 0.75, 1.0, 1.0)
         _G["PUIMerchantSniperTabBtn"]:SetBackdropBorderColor(0.25, 0.25, 0.30, 1.0)
+        if currentSortCol == "MVPCT" then
+            currentSortCol = "NAME"
+            currentSortDir = "ASC"
+        end
         PUIMerchant:RefreshExplorerData()
     end)
     catalogTabBtn:SetPoint("LEFT", qBtn, "RIGHT", 14, 0)
@@ -388,6 +500,10 @@ function PUIMerchant:CreateMarketExplorerWindow()
         activeTab = "SNIPER"
         this:SetBackdropBorderColor(0.20, 0.85, 0.35, 1.0)
         catalogTabBtn:SetBackdropBorderColor(0.25, 0.25, 0.30, 1.0)
+        if currentSortCol == "NAME" then
+            currentSortCol = "MVPCT"
+            currentSortDir = "ASC"
+        end
         PUIMerchant:RefreshExplorerData()
     end)
     sniperTabBtn:SetPoint("LEFT", catalogTabBtn, "RIGHT", 4, 0)
@@ -399,30 +515,56 @@ function PUIMerchant:CreateMarketExplorerWindow()
     end)
     refreshBtn:SetPoint("TOPRIGHT", explorerFrame, "TOPRIGHT", -28, -32)
 
-    -- Table Column Headers
+    -- Table Column Headers (Interactive & Sortable)
     local headerFrame = CreateFrame("Frame", nil, explorerFrame)
     headerFrame:SetWidth(716)
     headerFrame:SetHeight(20)
     headerFrame:SetPoint("TOPLEFT", explorerFrame, "TOPLEFT", 12, -60)
 
-    local function CreateColHeader(text, width, align, anchor, offX)
-        local lbl = headerFrame:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
-        lbl:SetWidth(width)
-        lbl:SetJustifyH(align or "LEFT")
-        lbl:SetPoint("LEFT", anchor, "LEFT", offX, 0)
-        lbl:SetTextColor(0.4, 0.8, 1.0)
-        lbl:SetText(text)
-        return lbl
-    end
+    headerButtons = {}
+    for _, def in ipairs(HEADER_DEFINITIONS) do
+        local defKey = def.key
+        if defKey == "TREND" then
+            local lbl = headerFrame:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+            lbl:SetWidth(def.width)
+            lbl:SetJustifyH(def.align)
+            lbl:SetPoint("LEFT", headerFrame, "LEFT", def.offX, 0)
+            lbl:SetTextColor(0.4, 0.8, 1.0)
+            lbl:SetText(def.title)
+        else
+            local btn = CreateFrame("Button", nil, headerFrame)
+            btn:SetWidth(def.width)
+            btn:SetHeight(18)
+            btn:SetPoint("LEFT", headerFrame, "LEFT", def.offX, 0)
+            btn:SetBackdrop(Media:Fetch("border", "1Pixel"))
+            btn:SetBackdropColor(0.08, 0.08, 0.12, 0.50)
+            btn:SetBackdropBorderColor(0.20, 0.20, 0.25, 0.0)
 
-    CreateColHeader("Item Name", 190, "LEFT", headerFrame, 28)
-    CreateColHeader("Vol", 40, "RIGHT", headerFrame, 220)
-    CreateColHeader("Min Buyout", 85, "RIGHT", headerFrame, 265)
-    CreateColHeader("Core Median", 85, "RIGHT", headerFrame, 355)
-    CreateColHeader("7d Run Avg", 85, "RIGHT", headerFrame, 445)
-    CreateColHeader("MV %", 50, "RIGHT", headerFrame, 535)
-    CreateColHeader("7-Day Trend", 110, "CENTER", headerFrame, 595)
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(Media:Fetch("font", "Default"), 9, "OUTLINE")
+            lbl:SetPoint("LEFT", btn, "LEFT", 2, 0)
+            lbl:SetPoint("RIGHT", btn, "RIGHT", -2, 0)
+            lbl:SetJustifyH(def.align)
+            lbl:SetText(def.title)
+            btn.label = lbl
+
+            btn:SetScript("OnClick", function()
+                PUIMerchant:SetExplorerSort(defKey)
+            end)
+            btn:SetScript("OnEnter", function()
+                btn:SetBackdropColor(0.15, 0.18, 0.25, 0.90)
+                btn.label:SetTextColor(1.0, 1.0, 1.0)
+            end)
+            btn:SetScript("OnLeave", function()
+                btn:SetBackdropColor(0.08, 0.08, 0.12, 0.50)
+                PUIMerchant:UpdateHeaderLabels()
+            end)
+
+            headerButtons[defKey] = btn
+        end
+    end
+    PUIMerchant:UpdateHeaderLabels()
 
     -- Table Scroll Frame
     local scrollFrame = CreateFrame("ScrollFrame", "PUIMerchantExplorerScroll", explorerFrame, "FauxScrollFrameTemplate")
