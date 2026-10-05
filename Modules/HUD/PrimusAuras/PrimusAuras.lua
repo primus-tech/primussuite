@@ -31,7 +31,7 @@ local aurasDB = DB:RegisterNamespace("PUIAuras", {
     spacing = 4,
     buffsPerRow = 8,
     growthDirection = "LEFT", -- LEFT or RIGHT
-    hideWithHud = true,       -- Auto-hide when PUIHud is active
+    hideWithHud = false,      -- Auto-hide when PUIHud is active (default false so top-right buffs persist)
 })
 
 local auraButtons = {}
@@ -256,8 +256,8 @@ function PUIAuras:RegisterOptionsFlare()
                 label = "Hide When PUIHud Is Active",
                 type = "checkbox",
                 desc = "Automatically hide the top-right aura grid while the central combat HUD is active.",
-                default = true,
-                get = function() return aurasDB:Get("hideWithHud", true) end,
+                default = false,
+                get = function() return aurasDB:Get("hideWithHud", false) end,
                 set = function(val)
                     aurasDB:Set("hideWithHud", val)
                     PUIAuras:UpdateAuras()

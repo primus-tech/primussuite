@@ -124,7 +124,7 @@ function Auras:GetUnitAuras(unit)
         -- 1. Player Buffs (using GetPlayerBuff for precise time left & cancellation index)
         for i = 0, 31 do
             local buffIndex, untilCancelled = GetPlayerBuff(i, "HELPFUL")
-            if buffIndex > -1 then
+            if buffIndex and buffIndex > -1 then
                 local texture = GetPlayerBuffTexture(buffIndex)
                 if texture then
                     bCount = bCount + 1
@@ -140,13 +140,15 @@ function Auras:GetUnitAuras(unit)
                         isDebuff = false,
                     }
                 end
+            else
+                break
             end
         end
 
         -- 2. Player Debuffs
         for i = 0, 15 do
             local debuffIndex = GetPlayerBuff(i, "HARMFUL")
-            if debuffIndex > -1 then
+            if debuffIndex and debuffIndex > -1 then
                 local texture = GetPlayerBuffTexture(debuffIndex)
                 if texture then
                     dCount = dCount + 1
@@ -163,6 +165,8 @@ function Auras:GetUnitAuras(unit)
                         isDebuff = true,
                     }
                 end
+            else
+                break
             end
         end
     else

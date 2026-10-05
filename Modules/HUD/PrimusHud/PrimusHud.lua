@@ -97,7 +97,7 @@ function PUIHud:CreateHUD()
     local gap   = hudDB:Get("centerGap", 120)
 
     hudFrame = CreateFrame("Frame", "Primus_PUIHudFrame", UIParent)
-    hudFrame:SetWidth(gap + (wingW + pwrW + 4) * 2 + 120)
+    hudFrame:SetWidth(gap + (wingW + pwrW + 4) * 2 + 180)
     hudFrame:SetHeight(wingH + 110)
     hudFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -80)
     hudFrame:SetAlpha(currentAlpha)
@@ -163,6 +163,28 @@ function PUIHud:RegisterOptionsFlare()
                     if Primus.PUIAuras and Primus.PUIAuras.UpdateAuras then
                         Primus.PUIAuras:UpdateAuras()
                     end
+                end,
+            },
+            {
+                key = "showPlayerAuras",
+                label = "Show Player Buffs & Debuffs on HUD",
+                type = "checkbox",
+                default = true,
+                get = function() return hudDB:Get("showPlayerAuras", true) end,
+                set = function(val)
+                    hudDB:Set("showPlayerAuras", val)
+                    PUIHud:UpdateAuras()
+                end,
+            },
+            {
+                key = "showTargetAuras",
+                label = "Show Target Buffs & Debuffs on HUD",
+                type = "checkbox",
+                default = true,
+                get = function() return hudDB:Get("showTargetAuras", true) end,
+                set = function(val)
+                    hudDB:Set("showTargetAuras", val)
+                    PUIHud:UpdateAuras()
                 end,
             },
             {
