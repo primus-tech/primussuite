@@ -347,9 +347,16 @@ Anchored to the center of the screen with customizable center negative space:
 ## 7. Completed Milestones & Verification Log
 
 - [x] **Core Foundation & Lifecycle Runtime:** 100% canonical nomenclature, 2-phase boot sequencer, memory table pooling, ticker engine, multi-profile database, and PUIMover categorized dock.
+- [x] **3-Path Distribution Pipeline:** Automated packaging & multi-repo sync for `PrimusSuite` (All-in-One), `PrimusCore` (Shared Engine), and 8 standalone plug-and-play AddOns (`PrimusMerchant`, `PrimusCombat`, `PrimusTalk`, `PrimusRoleplay`, `PrimusQuest`, `PrimusBags`, `PrimusHotbars`, `PrimusUnitFrames`).
 - [x] **Master Options GUI Redesign:** 25% Left Command Center / 75% Right dynamic LoD canvas with frame caching.
 - [x] **The 7 Centralized Core Services:** `PUIMap`, `Primus.Utils` URL extraction, `Primus.Chat` message bus, `Primus.Auras` 100ms cache scanner, `Primus.Items` resolver, `Primus.Audio` sound governor, `Primus.Widgets:ShowContextMenu` context menus.
-- [x] **Combat & HUD Systems:** Precision combat log, dual swing timers, PUIHotbars matrix virtualization, PUIHud modular deconstruction, Bar 10 mini-bars, click-casting, range dimming, and cast bars.
+- [x] **Combat, HUD & Action Bars:** Precision combat log, dual swing timers, PUIHotbars matrix virtualization, PUIHud modular deconstruction, Bar 10 mini-bars, click-casting, range dimming, cast bars, and ActiveAssist threat rescue with inter-client lockout broadcasting (`Primus.Comm`).
+- [x] **HUD 16-Slot Dual-Column Aura Array:** Outward-expanding 16-slot HUD buffs/debuffs/enchants array with self-healing direct C-API fallback, dispel border glow, and right-click buff cancellation.
+- [x] **PUIMerchant Economy & Step-Down Suite:**
+  - **Adaptive Server-Throttle Scanner:** 100ms micro-step cooldowns, streaming per-page ingestion (0 memory lag), and empirical rolling cycle ETA.
+  - **Offline Market Explorer (`/pui market`):** Clickable sortable columns (`Item Name`, `Vol`, `Min Buyout`, `Core Median`, `7d Run Avg`, `MV %`), 14-day Box-Plot historical bar graphs, and search filters.
+  - **1-Click Step-Down Undercut Rail:** Integrated undercut rail on `AuctionFrameAuctions` (`-1c`, `-5c`, `-1%`, `-5%`, Match) with vendor price floor protection.
+  - **3-Way Economy Partitioning:** Alliance Capital, Horde Capital, and Steamwheedle Neutral AH tracking.
 - [x] **PUIRoleplay 28-File Suite:** 7-tab character sheet, discovery directory, dossier flyout, glance pill, world map pins, D20 tabletop engine, RP letters/stashes, Elephant logger, Listener radar, emote splitter, RP tray, and multi-addon importer.
 - [x] **RP Text Codec & Wire Hardening:** `@N`/`@J`/`@T`/`@@` newline translation pipeline, dynamic lore scroll sizing, online presence ping routing fix (180s heartbeat), and `ComposeFullName` fallback resolution.
 - [x] **World, Inventory & Database:** PUIQuest integrated database with 3D HUD arrow, PUISellValue hybrid pricing, PUITooltip single-owner pipeline, PUIBags/PUIBank with offline caching.
@@ -361,47 +368,57 @@ Anchored to the center of the screen with customizable center negative space:
 
 ```mermaid
 graph TD
-    subgraph SPRINT 2: Tactical Combat & Assist Innovation
-        A[ActiveAssist 2-Click Protocol] --> B[Comm Lockout Broadcast]
-        B --> C[Triage MT Health Forecast]
-        C --> D[PUIUnitFrames Raid Grid Layouts]
+    subgraph SPRINT 1: Core Architecture & 3-Path Distribution [COMPLETED]
+        A1[Bootstrap & Core Services] --> A2[Master Options 25/75 GUI]
+        A2 --> A3[Multi-Repo Distribution Pipeline]
     end
 
-    subgraph SPRINT 3: Economy & World Systems
-        E[Auction House Enhancer] --> F[TradeSkill Reagent Estimator]
-        F --> G[Tavern Mini-Games]
+    subgraph SPRINT 2: Tactical Combat, HUD & Economy Engine [COMPLETED]
+        B1[ActiveAssist & Triage MT Rebound] --> B2[16-Slot Outward HUD Aura Array]
+        B2 --> B3[Adaptive AH Scanner & Step-Down Undercut Rail]
+        B3 --> B4[Sortable Offline Market Explorer]
     end
 
-    subgraph SPRINT 4: Performance Profiling & Release
-        H[Long-Session GC Benchmarks] --> I[Comprehensive User Manual]
+    subgraph SPRINT 3: Minimap Orbit Hub & Economy Expansion [UP NEXT]
+        C1[Unified Minimap Orbit Command Hub] --> C2[Consolidate Floating RP Tray into Orbit]
+        C2 --> C3[Crafting & TradeSkill Assistant]
+        C3 --> C4[Neutral AH Cross-Faction Arbitrage Sniper]
     end
 
+    subgraph SPRINT 4: Performance Profiling & Documentation [UPCOMING]
+        D1[40-Man Raid 2h+ GC Benchmarks] --> D2[Comprehensive Illustrated User Guide]
+    end
+
+    SPRINT 1 --> SPRINT 2
     SPRINT 2 --> SPRINT 3
     SPRINT 3 --> SPRINT 4
 ```
 
-### ⚔️ Sprint 2: Tactical Combat & Assist Innovation (Completed)
-1. **ActiveAssist Inter-Client Lockout Protocol (`Primus.Comm`):** Multi-client `CLAIM:<PlayerName>:<ThreatTarget>` broadcast synchronizing threat claims across raid members.
-2. **PUIHud Triage Array Reassurance Flash:** Emergency visual feedback when MT health rebounds from critical levels.
-3. **PUIUnitFrames Raid Density Presets:** 40-man, 20-man, 10-man, 5-man, and Auto-Adaptive grid density layouts in `/pui config`.
-4. **PUIMerchant 15s Patient AH Scanner & Quantile Engine:** Server-safe 15s query loop, live 1s countdown, 14-day Box-Plot bar graphs, offline market explorer (`/pui market`), and 1-click seller assistance.
+### ⚔️ Sprint 2: Tactical Combat, HUD & Economy Engine (Completed)
+- [x] **ActiveAssist Inter-Client Lockout Protocol (`Primus.Comm`):** Multi-client `CLAIM:<PlayerName>:<ThreatTarget>` broadcast synchronizing threat claims across raid members.
+- [x] **PUIHud Triage Array Reassurance Flash:** Emergency visual feedback when MT health rebounds from critical levels.
+- [x] **HUD 16-Slot Dual-Column Aura Array:** Outward-expanding 16-slot HUD buffs/debuffs/enchants array with self-healing direct C-API fallback, dispel border glow, and right-click buff cancellation.
+- [x] **PUIUnitFrames Raid Density Presets:** 40-man, 20-man, 10-man, 5-man, and Auto-Adaptive grid density layouts in `/pui config`.
+- [x] **PUIMerchant Adaptive AH Scanner & ETA Engine:** Server-throttle awareness, 100ms micro-step cooldowns, streaming per-page ingestion (0 memory lag), and empirical rolling cycle ETA.
+- [x] **PUIMerchant Offline Market Explorer (`/pui market`):** Clickable sortable columns (`Item Name`, `Vol`, `Min Buyout`, `Core Median`, `7d Run Avg`, `MV %`), 14-day Box-Plot bar graphs, and search filters.
+- [x] **PUIMerchant 1-Click Step-Down Undercut Rail:** One-click `-1c`, `-5c`, `-1%`, `-5%`, and match price adjustments with vendor floor protection.
 
-### 🔮 Sprint 3: Unified Minimap Orbit Command Hub & Economy Expansion
+### 🔮 Sprint 3: Unified Minimap Orbit Command Hub & Economy Expansion (Up Next)
 1. **Unified Minimap Orbit Command Hub (`PUIMinimapOrbit` & `PUISideDock`):**
-   - **Retire Floating RP Tray (`PUITray`):** Absorb all 12 floating RP actions directly into the Minimap Orbit System to eliminate screen clutter.
+   - **Retire Floating RP Tray (`PUITray`):** Absorb all floating RP tray actions directly into the Minimap Orbit System to eliminate screen clutter.
    - **Level-1 Arc/Radial Category Flyout:** Expanding outward from `Primus_MinimapOrbitBtn` on the Minimap Side Dock into 6 Core Domain Nodes: 🎭 *Roleplay & Persona*, 💰 *Economy & Valuation*, ⚔️ *Combat & Tactical*, 🗺️ *World & Quests*, 🛠️ *Professions & Gathering*, 🧩 *3rd-Party Addon Bag*, and ⚙️ *System & Profiles*.
    - **Level-2 Dark Glass Dropdowns:** Dynamic module registration pipeline with live badge pings (threat alerts, unread RP letters, active sniping deals, and cooldown timers).
-2. **PUIMerchant 3-Way Economy Partitioning (Faction vs Neutral AH):**
+2. **PUIMerchant 3-Way Economy Partitioning & Cross-Faction Arbitrage:**
    - Autonomous detection of Alliance Capital, Horde Capital, and Steamwheedle Neutral (Booty Bay, Gadgetzan, Everlook) auction houses.
    - Dedicated Cross-Faction Arbitrage Sniper tab calculating profit margins after the Goblin 15% cut.
 3. **Crafting & TradeSkill Assistant (`PUIProfessions`):**
-   - Real-time reagent inventory availability badges and recipe profitability summaries.
+   - Real-time reagent inventory availability badges, material cost vs. finished market value, and recipe profitability calculation.
 4. **Tabletop & Tavern Expansion (`PUIDice`):**
-   - Interactive tavern dice duels and character sheet stat sync.
+   - Interactive tavern dice games, card decks, and D20 combat stats sync.
 
-### 🧪 Sprint 4: Performance Profiling & Documentation
+### 🧪 Sprint 4: Performance Profiling & Documentation (Upcoming)
 1. **Endurance GC Profiling:** Run memory benchmarks across 2+ hour 40-man raid sessions to ensure zero heap leaks.
-2. **Interactive User Guide:** Create a user-facing visual documentation guide with screenshots and command references.
+2. **Interactive Illustrated User Guide:** Create a user-facing visual documentation guide with screenshots and command references.
 
 ---
 
