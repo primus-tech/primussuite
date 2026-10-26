@@ -64,7 +64,11 @@ local function SetupPinScripts(pin)
 
         if d.pinType == "AVAILABLE" then
             WorldMapTooltip:AddLine(string.format("Quest Giver: |cffffffff%s|r", d.npcName or "NPC"), 1, 0.82, 0)
-            WorldMapTooltip:AddLine("Status: |cffffd100Available Quest|r", 0.7, 0.7, 0.7)
+            if d.isLowLevel then
+                WorldMapTooltip:AddLine("Status: |cff9d9d9dLow-Level / Trivial Quest|r", 0.65, 0.65, 0.65)
+            else
+                WorldMapTooltip:AddLine("Status: |cffffd100Available Quest|r", 0.7, 0.7, 0.7)
+            end
             if d.minLevel and d.minLevel > 1 then
                 WorldMapTooltip:AddLine(string.format("Requires Level: %d", d.minLevel), 0.6, 0.6, 0.6)
             end
@@ -136,6 +140,9 @@ local function GetZoneCoords(spawnsTbl, currentZoneName, currentZoneID)
     end
     return results
 end
+
+PUIQuest.GetDifficultyColor = GetDifficultyColor
+PUIQuest.GetZoneCoords = GetZoneCoords
 
 --------------------------------------------------------------------------------
 -- Quest Log Progress Helper
@@ -384,15 +391,18 @@ function Map:RenderQuestPins(mapContext)
     -- 2. Available Quests in Zone
     if PUIQuest.db:Get("showAvailableQuests", true) then
         local pLevel = UnitLevel("player") or 1
+        local showLowLevel = PUIQuest.db:Get("showLowLevelQuests", true)
         local questData = DB["quests"] and DB["quests"]["data"]
         if questData then
             for qID, qInfo in pairs(questData) do
                 local minLvl = qInfo["min"] or 1
                 local qLvl = qInfo["lvl"] or minLvl
+                local diff = qLvl - pLevel
+                local isLowLevel = (diff <= -5)
                 local isComplete = PUIQuest.IsQuestCompleted and PUIQuest:IsQuestCompleted(qID)
                 local prereqsMet = (not PUIQuest.ArePrereqsCompleted) or PUIQuest:ArePrereqsCompleted(qID)
 
-                if not isComplete and prereqsMet and pLevel >= minLvl then
+                if not isComplete and prereqsMet and pLevel >= minLvl and (not isLowLevel or showLowLevel) then
                     local qEntry = PUIQuest.Database:FindQuest(qID)
                     local qTitle = qEntry and qEntry.title or ("Quest #" .. qID)
                     local inLog = false
@@ -401,6 +411,7 @@ function Map:RenderQuestPins(mapContext)
                     end
 
                     if not inLog then
+                        local col = isLowLevel and { r = 0.65, g = 0.65, b = 0.65 } or GetDifficultyColor(qLvl)
                         -- Check Unit Quest Givers
                         if qInfo["start"] and qInfo["start"]["U"] then
                             for _, uID in pairs(qInfo["start"]["U"]) do
@@ -410,7 +421,6 @@ function Map:RenderQuestPins(mapContext)
                                     for _, coord in pairs(coords) do
                                         local pin = mapContext.AcquirePin()
                                         pin.icon:SetTexture(nil)
-                                        local col = GetDifficultyColor(qLvl)
                                         pin.label:SetText("!")
                                         pin.label:SetTextColor(col.r, col.g, col.b)
                                         pin.data = {
@@ -419,6 +429,7 @@ function Map:RenderQuestPins(mapContext)
                                             minLevel = minLvl,
                                             npcName = unit.name,
                                             pinType = "AVAILABLE",
+                                            isLowLevel = isLowLevel,
                                             x = coord.x,
                                             y = coord.y,
                                         }
@@ -438,7 +449,6 @@ function Map:RenderQuestPins(mapContext)
                                     for _, coord in pairs(coords) do
                                         local pin = mapContext.AcquirePin()
                                         pin.icon:SetTexture(nil)
-                                        local col = GetDifficultyColor(qLvl)
                                         pin.label:SetText("!")
                                         pin.label:SetTextColor(col.r, col.g, col.b)
                                         pin.data = {
@@ -447,6 +457,7 @@ function Map:RenderQuestPins(mapContext)
                                             minLevel = minLvl,
                                             npcName = obj.name,
                                             pinType = "AVAILABLE",
+                                            isLowLevel = isLowLevel,
                                             x = coord.x,
                                             y = coord.y,
                                         }

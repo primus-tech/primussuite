@@ -54,6 +54,10 @@ function PUIHotbars:BuildMicroBar()
         microAnchor:SetHeight(btnH)
     end
 
+    local mover = PUIMover or Primus.PUIMover
+    local microScale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Micro")) or 1.0
+    microAnchor:SetScale(microScale)
+
     for i = 1, 8 do
         local btn = _G[microList[i]]
         if btn then
@@ -164,6 +168,9 @@ function PUIHotbars:BuildBagBar()
             mover:ClampFrameToScreen(bagAnchor)
         end
     end
+
+    local bagScale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bags")) or 1.0
+    bagAnchor:SetScale(bagScale)
 
     local curX = 0
     local numActive = table.getn(activeButtons)

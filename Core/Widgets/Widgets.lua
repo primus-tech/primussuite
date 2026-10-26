@@ -242,6 +242,114 @@ function Widgets:CreateCheckButton(parent, labelText, defaultChecked, onToggle)
 end
 
 -- =========================================================================
+-- DROPDOWN / SELECT BUILDER
+-- =========================================================================
+
+local function GetDropdownEntryValueAndText(entry)
+    if type(entry) == "table" then
+        local val = entry.value ~= nil and entry.value or entry[1]
+        local text = entry.text or entry.label or entry[2] or tostring(val or "")
+        return val, text
+    else
+        return entry, tostring(entry or "")
+    end
+end
+
+function Widgets:CreateDropdown(parent, width, height, items, defaultVal, onSelect)
+    parent = parent or UIParent
+    width  = width or 200
+    height = height or 22
+
+    local btn = self:CreateButton(parent, "", width, height)
+    btn.items = items or {}
+    btn.onSelect = onSelect
+
+    if defaultVal == nil and btn.items and table.getn(btn.items) > 0 then
+        local firstVal = GetDropdownEntryValueAndText(btn.items[1])
+        defaultVal = firstVal
+    end
+    btn.selectedValue = defaultVal
+
+    if btn.text then
+        btn.text:ClearAllPoints()
+        btn.text:SetPoint("LEFT", btn, "LEFT", 8, 0)
+        btn.text:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
+        btn.text:SetJustifyH("LEFT")
+    end
+
+    local function FindItemText(val)
+        if not btn.items then return tostring(val or "") end
+        local count = table.getn(btn.items)
+        for i = 1, count do
+            local v, t = GetDropdownEntryValueAndText(btn.items[i])
+            if v == val then
+                return t
+            end
+        end
+        return tostring(val or "")
+    end
+
+    local function UpdateDisplay()
+        local txt = FindItemText(btn.selectedValue)
+        if btn.SetButtonText then
+            btn:SetButtonText(txt .. " ▼")
+        elseif btn.text then
+            btn.text:SetText(txt .. " ▼")
+        end
+    end
+
+    function btn:SetValue(val, silent)
+        self.selectedValue = val
+        UpdateDisplay()
+        if not silent and self.onSelect then
+            local _, text = GetDropdownEntryValueAndText({ val, FindItemText(val) })
+            self.onSelect(val, text)
+        end
+    end
+
+    function btn:GetValue()
+        return self.selectedValue
+    end
+
+    function btn:SetItems(newItems, newDefault)
+        self.items = newItems or {}
+        if newDefault ~= nil then
+            self.selectedValue = newDefault
+        end
+        UpdateDisplay()
+    end
+
+    UpdateDisplay()
+
+    btn:SetScript("OnClick", function()
+        if not btn.items or table.getn(btn.items) == 0 then return end
+        local menuItems = {}
+        local count = table.getn(btn.items)
+        for idx = 1, count do
+            local eVal, eText = GetDropdownEntryValueAndText(btn.items[idx])
+            local valCapture = eVal
+            table.insert(menuItems, {
+                text = eText,
+                checked = (eVal == btn.selectedValue),
+                func = function()
+                    btn:SetValue(valCapture)
+                end,
+                onClick = function()
+                    btn:SetValue(valCapture)
+                end,
+            })
+        end
+
+        local w = Primus.Widgets or Widgets
+        if w and w.ShowContextMenu then
+            w:ShowContextMenu(this, menuItems, { minWidth = width })
+        end
+    end)
+
+    return btn
+end
+
+-- =========================================================================
 -- SLIDER BUILDER
 -- =========================================================================
 

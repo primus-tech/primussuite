@@ -48,6 +48,8 @@ PUIQuest.db = DB:RegisterNamespace("PUIQuest", {
     minimapShape        = "auto",   -- "auto", "round", "square"
     showRouteLines      = true,     -- Glowing route trails connecting player to target
     showAvailableQuests = true,
+    showLowLevelQuests  = true,     -- Track low-level / trivial / gray quests (!)
+    showMinimapQuestPins= true,     -- Show Available Quest (!) pins on Minimap
     showTurnIns         = true,
     showObjectives      = true,
 })
@@ -369,6 +371,31 @@ function PUIQuest:RegisterOptionsFlare()
                 set = function(val)
                     PUIQuest.db:Set("showAvailableQuests", val)
                     if PUIQuest.Map then PUIQuest.Map:Update() end
+                    if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
+                end,
+            },
+            {
+                key = "showLowLevelQuests",
+                label = "Track Low-Level / Trivial Quests (Gray !)",
+                type = "checkbox",
+                default = true,
+                get = function() return PUIQuest.db:Get("showLowLevelQuests", true) end,
+                set = function(val)
+                    PUIQuest.db:Set("showLowLevelQuests", val)
+                    if PUIQuest.Map then PUIQuest.Map:Update() end
+                    if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
+                end,
+            },
+            {
+                key = "showMinimapQuestPins",
+                label = "Show Available Quest Pins (!) on Minimap",
+                type = "checkbox",
+                default = true,
+                get = function() return PUIQuest.db:Get("showMinimapQuestPins", true) end,
+                set = function(val)
+                    PUIQuest.db:Set("showMinimapQuestPins", val)
+                    if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
+                    if PUIQuest.Tracker then PUIQuest.Tracker:Update() end
                 end,
             },
             {
@@ -434,16 +461,19 @@ end
 
 function PUIQuest:OnEnable()
     Events:Register("QUEST_LOG_UPDATE", "PUIQuest", function()
+        if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
         if Primus.PUIMap then Primus.PUIMap:Refresh() elseif PUIQuest.Map then PUIQuest.Map:Update() end
         if PUIQuest.Tracker then PUIQuest.Tracker:Update() end
     end)
 
     Events:Register("ZONE_CHANGED", "PUIQuest", function()
+        if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
         if PUIQuest.Map then PUIQuest.Map:Update() end
         if PUIQuest.Tracker then PUIQuest.Tracker:Update() end
     end)
 
     Events:Register("ZONE_CHANGED_NEW_AREA", "PUIQuest", function()
+        if PUIQuest.Tracker and PUIQuest.Tracker.InvalidateZoneCache then PUIQuest.Tracker:InvalidateZoneCache() end
         if PUIQuest.Map then PUIQuest.Map:Update() end
         if PUIQuest.Tracker then PUIQuest.Tracker:Update() end
     end)

@@ -227,8 +227,13 @@ function PUITooltip:RegisterFlare()
         
         -- Open Mover Action Button
         local moveBtn = Primus.Widgets:CreateButton(frame, "Move Tooltip Anchor (/pui move)", 220, 24, function()
-            if Primus.PUIMover and Primus.PUIMover.Toggle then
-                Primus.PUIMover:Toggle()
+            local mover = Primus.PUIMover or PUIMover or _G.PUIMover
+            if mover then
+                if mover.ToggleLock then
+                    mover:ToggleLock("UTILITY")
+                elseif mover.Toggle then
+                    mover:Toggle("UTILITY")
+                end
             end
         end)
         moveBtn:SetPoint("TOPLEFT", cbCombat, "BOTTOMLEFT", 0, -16)

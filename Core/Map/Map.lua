@@ -234,19 +234,27 @@ end
 local isRefreshing = false
 
 function PUIMap:ReleaseAll()
-    for i = 1, table.getn(activePins) do
+    local numPins = table.getn(activePins)
+    for i = 1, numPins do
         local pin = activePins[i]
-        pin:Hide()
-        table.insert(pinPool, pin)
+        if pin then
+            if pin.Hide then pin:Hide() end
+            table.insert(pinPool, pin)
+        end
     end
     for k in pairs(activePins) do activePins[k] = nil end
+    if table.setn then table.setn(activePins, 0) end
 
-    for i = 1, table.getn(activeDots) do
+    local numDots = table.getn(activeDots)
+    for i = 1, numDots do
         local dot = activeDots[i]
-        dot:Hide()
-        table.insert(dotPool, dot)
+        if dot then
+            if dot.Hide then dot:Hide() end
+            table.insert(dotPool, dot)
+        end
     end
     for k in pairs(activeDots) do activeDots[k] = nil end
+    if table.setn then table.setn(activeDots, 0) end
 
     for k in pairs(placedPositions) do placedPositions[k] = nil end
 end

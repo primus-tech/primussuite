@@ -36,6 +36,57 @@ local function FormatTraitStatus(val, leftName, rightName)
 end
 
 --------------------------------------------------------------------------------
+-- Helper: Update Slider Visualization
+--------------------------------------------------------------------------------
+local function UpdateVisualSlider(rowFrame, currVal)
+    if not rowFrame or not rowFrame.track or not rowFrame.track.thumb then return end
+    local v = math.max(0, math.min(20, tonumber(currVal) or 10))
+    local trackWidth = 170
+    local frac = v / 20.0
+    local thumbX = math.floor(frac * trackWidth)
+    local midX = math.floor(trackWidth / 2)
+
+    rowFrame.track.thumb:SetPoint("CENTER", rowFrame.track, "LEFT", thumbX, 0)
+
+    local traitData = rowFrame.traitData or {}
+    local leftName = traitData.leftName or "Left"
+    local rightName = traitData.rightName or "Right"
+    if rowFrame.lNameEB and rowFrame.lNameEB.GetText then
+        local ebText = rowFrame.lNameEB:GetText()
+        if ebText and ebText ~= "" then leftName = ebText end
+    end
+    if rowFrame.rNameEB and rowFrame.rNameEB.GetText then
+        local ebText = rowFrame.rNameEB:GetText()
+        if ebText and ebText ~= "" then rightName = ebText end
+    end
+
+    if rowFrame.statusLbl then
+        rowFrame.statusLbl:SetText(FormatTraitStatus(v, leftName, rightName))
+    end
+
+    if v < 10 then
+        if rowFrame.track.rFill then rowFrame.track.rFill:Hide() end
+        if rowFrame.track.lFill then
+            rowFrame.track.lFill:ClearAllPoints()
+            rowFrame.track.lFill:SetPoint("TOPLEFT", rowFrame.track, "LEFT", thumbX, 6)
+            rowFrame.track.lFill:SetPoint("BOTTOMRIGHT", rowFrame.track, "LEFT", midX, -6)
+            rowFrame.track.lFill:Show()
+        end
+    elseif v > 10 then
+        if rowFrame.track.lFill then rowFrame.track.lFill:Hide() end
+        if rowFrame.track.rFill then
+            rowFrame.track.rFill:ClearAllPoints()
+            rowFrame.track.rFill:SetPoint("TOPLEFT", rowFrame.track, "LEFT", midX, 6)
+            rowFrame.track.rFill:SetPoint("BOTTOMRIGHT", rowFrame.track, "LEFT", thumbX, -6)
+            rowFrame.track.rFill:Show()
+        end
+    else
+        if rowFrame.track.lFill then rowFrame.track.lFill:Hide() end
+        if rowFrame.track.rFill then rowFrame.track.rFill:Hide() end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Build Tab Panel 3: Personality Trait Sliders & Custom Axis Creator
 --------------------------------------------------------------------------------
 function SheetTabs:BuildPanel3(parent, f)
@@ -302,6 +353,13 @@ function SheetTabs:RefreshPersonalityTab(f)
             personalityRows[idx] = row
         end
 
+        if not row.statusLbl and row.track then
+            local statusLbl = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            statusLbl:SetPoint("BOTTOM", row.track, "TOP", 0, 2)
+            statusLbl:SetText("Neutral")
+            row.statusLbl = statusLbl
+        end
+
         row:SetPoint("TOPLEFT", p3.scrollChild, "TOPLEFT", 0, startY - (idx - 1) * rowHeight)
         row:Show()
 
@@ -316,13 +374,15 @@ function SheetTabs:RefreshPersonalityTab(f)
         row.rIconBtn.tex:SetTexture("Interface\\Icons\\" .. rIconName)
 
         row.lIconBtn:SetScript("OnClick", function()
+            local rowFrame = this:GetParent()
+            if not rowFrame then return end
             if Sheet:IsViewingSelf() then
-                local currentIdx = row.traitIndex
+                local currentIdx = rowFrame.traitIndex
                 Sheet:OpenIconPicker(function(selectedIconIndex)
                     local iconName = PUIRoleplay.Icons[selectedIconIndex] or "INV_Misc_QuestionMark"
                     local prof = PUIRoleplay:GetMyProfile()
                     local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                    if tList[currentIdx] then
+                    if currentIdx and tList and tList[currentIdx] then
                         tList[currentIdx].leftIcon = iconName
                         prof.personality_traits = tList
                         prof.keyP = PUIRoleplay:GenerateKey()
@@ -334,13 +394,15 @@ function SheetTabs:RefreshPersonalityTab(f)
         end)
 
         row.rIconBtn:SetScript("OnClick", function()
+            local rowFrame = this:GetParent()
+            if not rowFrame then return end
             if Sheet:IsViewingSelf() then
-                local currentIdx = row.traitIndex
+                local currentIdx = rowFrame.traitIndex
                 Sheet:OpenIconPicker(function(selectedIconIndex)
                     local iconName = PUIRoleplay.Icons[selectedIconIndex] or "INV_Misc_QuestionMark"
                     local prof = PUIRoleplay:GetMyProfile()
                     local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                    if tList[currentIdx] then
+                    if currentIdx and tList and tList[currentIdx] then
                         tList[currentIdx].rightIcon = iconName
                         prof.personality_traits = tList
                         prof.keyP = PUIRoleplay:GenerateKey()
@@ -374,97 +436,121 @@ function SheetTabs:RefreshPersonalityTab(f)
         end
 
         row.lNameEB:SetScript("OnTextChanged", function()
+            local rowFrame = this:GetParent()
+            if not rowFrame then return end
             if Sheet:IsViewingSelf() and f.isRefreshing ~= true then
                 local prof = PUIRoleplay:GetMyProfile()
                 local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                if tList[row.traitIndex] then
-                    tList[row.traitIndex].leftName = this:GetText()
+                local currentIdx = rowFrame.traitIndex
+                if currentIdx and tList and tList[currentIdx] then
+                    tList[currentIdx].leftName = this:GetText()
+                    if rowFrame.traitData then rowFrame.traitData.leftName = this:GetText() end
                     prof.personality_traits = tList
                     prof.keyP = PUIRoleplay:GenerateKey()
                     PUIRoleplay:SaveMyProfile(prof)
+                    if rowFrame.traitData and rowFrame.traitData.value then
+                        UpdateVisualSlider(rowFrame, rowFrame.traitData.value)
+                    end
                 end
             end
         end)
 
         row.rNameEB:SetScript("OnTextChanged", function()
+            local rowFrame = this:GetParent()
+            if not rowFrame then return end
             if Sheet:IsViewingSelf() and f.isRefreshing ~= true then
                 local prof = PUIRoleplay:GetMyProfile()
                 local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                if tList[row.traitIndex] then
-                    tList[row.traitIndex].rightName = this:GetText()
+                local currentIdx = rowFrame.traitIndex
+                if currentIdx and tList and tList[currentIdx] then
+                    tList[currentIdx].rightName = this:GetText()
+                    if rowFrame.traitData then rowFrame.traitData.rightName = this:GetText() end
                     prof.personality_traits = tList
                     prof.keyP = PUIRoleplay:GenerateKey()
                     PUIRoleplay:SaveMyProfile(prof)
+                    if rowFrame.traitData and rowFrame.traitData.value then
+                        UpdateVisualSlider(rowFrame, rowFrame.traitData.value)
+                    end
                 end
             end
         end)
 
         row.delBtn:SetScript("OnClick", function()
+            local rowFrame = this:GetParent()
+            if not rowFrame then return end
             if Sheet:IsViewingSelf() then
                 local prof = PUIRoleplay:GetMyProfile()
                 local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                table.remove(tList, row.traitIndex)
-                prof.personality_traits = tList
-                prof.keyP = PUIRoleplay:GenerateKey()
-                PUIRoleplay:SaveMyProfile(prof)
-                SheetTabs:RefreshPersonalityTab(f)
-            end
-        end)
-
-        -- Slider Visualization Function
-        local val = tonumber(trait.value) or 10
-        local function UpdateVisualSlider(currVal)
-            local v = math.max(0, math.min(20, currVal))
-            local frac = v / 20.0
-            local thumbX = math.floor(frac * trackWidth)
-            local midX = math.floor(trackWidth / 2)
-
-            row.track.thumb:SetPoint("CENTER", row.track, "LEFT", thumbX, 0)
-            row.statusLbl:SetText(FormatTraitStatus(v, trait.leftName, trait.rightName))
-
-            if v < 10 then
-                row.track.rFill:Hide()
-                row.track.lFill:ClearAllPoints()
-                row.track.lFill:SetPoint("TOPLEFT", row.track, "LEFT", thumbX, 6)
-                row.track.lFill:SetPoint("BOTTOMRIGHT", row.track, "LEFT", midX, -6)
-                row.track.lFill:Show()
-            elseif v > 10 then
-                row.track.lFill:Hide()
-                row.track.rFill:ClearAllPoints()
-                row.track.rFill:SetPoint("TOPLEFT", row.track, "LEFT", midX, 6)
-                row.track.rFill:SetPoint("BOTTOMRIGHT", row.track, "LEFT", thumbX, -6)
-                row.track.rFill:Show()
-            else
-                row.track.lFill:Hide()
-                row.track.rFill:Hide()
-            end
-        end
-
-        UpdateVisualSlider(val)
-
-        -- Slider Interaction
-        if isSelf then
-            row.track:SetScript("OnMouseDown", function()
-                local cursorX = GetCursorPosition()
-                local scale = this:GetEffectiveScale()
-                local left = this:GetLeft() * scale
-                local width = this:GetWidth() * scale
-                local frac = math.max(0, math.min(1, (cursorX - left) / width))
-                local newVal = math.floor(frac * 20 + 0.5)
-
-                UpdateVisualSlider(newVal)
-
-                local prof = PUIRoleplay:GetMyProfile()
-                local tList = PUIRoleplay:GetPersonalityTraits(prof)
-                if tList[row.traitIndex] then
-                    tList[row.traitIndex].value = newVal
+                local currentIdx = rowFrame.traitIndex
+                if currentIdx and tList and tList[currentIdx] then
+                    table.remove(tList, currentIdx)
                     prof.personality_traits = tList
                     prof.keyP = PUIRoleplay:GenerateKey()
                     PUIRoleplay:SaveMyProfile(prof)
+                    SheetTabs:RefreshPersonalityTab(f)
                 end
+            end
+        end)
+
+        -- Initial Slider Visualization
+        local val = tonumber(trait.value) or 10
+        UpdateVisualSlider(row, val)
+
+        -- Slider Interaction (Click & Drag)
+        if isSelf then
+            row.track:SetScript("OnMouseDown", function()
+                local rowFrame = this:GetParent()
+                if not rowFrame then return end
+                this.isDragging = true
+
+                local function UpdatePos()
+                    local cursorX = GetCursorPosition()
+                    local scale = this:GetEffectiveScale()
+                    local left = this:GetLeft() * scale
+                    local width = this:GetWidth() * scale
+                    local frac = math.max(0, math.min(1, (cursorX - left) / width))
+                    local newVal = math.floor(frac * 20 + 0.5)
+
+                    UpdateVisualSlider(rowFrame, newVal)
+
+                    local prof = PUIRoleplay:GetMyProfile()
+                    local tList = PUIRoleplay:GetPersonalityTraits(prof)
+                    local currentIdx = rowFrame.traitIndex
+                    if currentIdx and tList and tList[currentIdx] then
+                        tList[currentIdx].value = newVal
+                        if rowFrame.traitData then
+                            rowFrame.traitData.value = newVal
+                        end
+                        prof.personality_traits = tList
+                        prof.keyP = PUIRoleplay:GenerateKey()
+                        PUIRoleplay:SaveMyProfile(prof)
+                    end
+                end
+
+                UpdatePos()
+
+                this:SetScript("OnUpdate", function()
+                    if this.isDragging then
+                        if not MouseIsOver(this) and (not IsMouseButtonDown or not IsMouseButtonDown("LeftButton")) then
+                            this.isDragging = false
+                            this:SetScript("OnUpdate", nil)
+                            return
+                        end
+                        UpdatePos()
+                    else
+                        this:SetScript("OnUpdate", nil)
+                    end
+                end)
+            end)
+
+            row.track:SetScript("OnMouseUp", function()
+                this.isDragging = false
+                this:SetScript("OnUpdate", nil)
             end)
         else
             row.track:SetScript("OnMouseDown", nil)
+            row.track:SetScript("OnMouseUp", nil)
+            row.track:SetScript("OnUpdate", nil)
         end
     end
 end

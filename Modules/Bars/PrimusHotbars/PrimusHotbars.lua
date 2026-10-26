@@ -38,6 +38,7 @@ local PUIMover = Primus.PUIMover
 
 local hotbarsDB = DB:RegisterNamespace("PUIHotbars", {
     enabled = true,
+    barScale = 1.0,
     buttonSize = 36,
     buttonSpacing = 4,
 
@@ -188,6 +189,9 @@ function PUIHotbars:LayoutMatrix(container, frameWrapper, buttonPrefix, numButto
         if frameWrapper.SetParent then
             frameWrapper:SetParent(container)
         end
+        if frameWrapper.SetScale then
+            frameWrapper:SetScale(1.0)
+        end
         frameWrapper:ClearAllPoints()
         frameWrapper:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
         frameWrapper:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 0, 0)
@@ -225,6 +229,8 @@ function PUIHotbars:ApplyLayout()
 
     local size    = hotbarsDB:Get("buttonSize", 36)
     local spacing = hotbarsDB:Get("buttonSpacing", 4)
+    local defaultBarScale = hotbarsDB:Get("barScale", 1.0)
+    local mover   = PUIMover or Primus.PUIMover
 
     -- Synchronize Blizzard FrameXML multi-action bar state variables
     SHOW_MULTI_ACTIONBAR_1 = hotbarsDB:Get("showBar2", true) and 1 or nil
@@ -238,7 +244,9 @@ function PUIHotbars:ApplyLayout()
     if self.xpBarFrame then
         local bar1Cols = hotbarsDB:Get("bar1Cols", 12)
         local xpW = bar1Cols * size + (bar1Cols - 1) * spacing
+        local xpScale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_XP")) or 1.0
         self.xpBarFrame:SetWidth(xpW)
+        self.xpBarFrame:SetScale(xpScale)
         if hotbarsDB:Get("showXPBar", true) then 
             self.xpBarFrame:Show() 
         else 
@@ -252,11 +260,13 @@ function PUIHotbars:ApplyLayout()
     if not bar1Anchor then
         bar1Anchor = CreateFrame("Frame", "Primus_PUIHotbars_Bar1", UIParent)
         bar1Anchor:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 18)
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(bar1Anchor, "PUIHotbars_Bar1", "PUIHotbars: Main Bar", "BARS")
         end
     end
+
+    local b1Scale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bar1")) or defaultBarScale
+    bar1Anchor:SetScale(b1Scale)
 
     self:LayoutMatrix(bar1Anchor, MainMenuBar, "ActionButton", 12, b1Cols, b1Rows, size, spacing)
     if hotbarsDB:Get("showBar1", true) then
@@ -268,9 +278,17 @@ function PUIHotbars:ApplyLayout()
     end
 
     if BonusActionBarFrame then
+        if BonusActionBarFrame.SetParent then
+            BonusActionBarFrame:SetParent(bar1Anchor)
+        end
+        if BonusActionBarFrame.SetScale then
+            BonusActionBarFrame:SetScale(1.0)
+        end
         BonusActionBarFrame:ClearAllPoints()
         BonusActionBarFrame:SetPoint("TOPLEFT", bar1Anchor, "TOPLEFT", 0, 0)
         BonusActionBarFrame:SetPoint("BOTTOMRIGHT", bar1Anchor, "BOTTOMRIGHT", 0, 0)
+        BonusActionBarFrame:SetWidth(bar1Anchor:GetWidth())
+        BonusActionBarFrame:SetHeight(bar1Anchor:GetHeight())
         for i = 1, 12 do
             local bBtn = _G["BonusActionButton" .. i]
             if bBtn then
@@ -292,11 +310,13 @@ function PUIHotbars:ApplyLayout()
     if not bar2Anchor then
         bar2Anchor = CreateFrame("Frame", "Primus_PUIHotbars_Bar2", UIParent)
         bar2Anchor:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 58)
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(bar2Anchor, "PUIHotbars_Bar2", "PUIHotbars: Secondary Bar", "BARS")
         end
     end
+
+    local b2Scale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bar2")) or defaultBarScale
+    bar2Anchor:SetScale(b2Scale)
 
     self:LayoutMatrix(bar2Anchor, MultiBarBottomLeft, "MultiBarBottomLeftButton", 12, b2Cols, b2Rows, size, spacing)
     if hotbarsDB:Get("showBar2", true) then
@@ -313,11 +333,13 @@ function PUIHotbars:ApplyLayout()
     if not bar3Anchor then
         bar3Anchor = CreateFrame("Frame", "Primus_PUIHotbars_Bar3", UIParent)
         bar3Anchor:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 98)
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(bar3Anchor, "PUIHotbars_Bar3", "PUIHotbars: Third Bar", "BARS")
         end
     end
+
+    local b3Scale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bar3")) or defaultBarScale
+    bar3Anchor:SetScale(b3Scale)
 
     self:LayoutMatrix(bar3Anchor, MultiBarBottomRight, "MultiBarBottomRightButton", 12, b3Cols, b3Rows, size, spacing)
     if hotbarsDB:Get("showBar3", true) then
@@ -334,11 +356,13 @@ function PUIHotbars:ApplyLayout()
     if not bar4Anchor then
         bar4Anchor = CreateFrame("Frame", "Primus_PUIHotbars_Bar4", UIParent)
         bar4Anchor:SetPoint("RIGHT", UIParent, "RIGHT", -6, 0)
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(bar4Anchor, "PUIHotbars_Bar4", "PUIHotbars: Right Bar 1", "BARS")
         end
     end
+
+    local b4Scale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bar4")) or defaultBarScale
+    bar4Anchor:SetScale(b4Scale)
 
     self:LayoutMatrix(bar4Anchor, MultiBarRight, "MultiBarRightButton", 12, b4Cols, b4Rows, size, spacing)
     if hotbarsDB:Get("showBar4", true) then
@@ -355,11 +379,13 @@ function PUIHotbars:ApplyLayout()
     if not bar5Anchor then
         bar5Anchor = CreateFrame("Frame", "Primus_PUIHotbars_Bar5", UIParent)
         bar5Anchor:SetPoint("RIGHT", UIParent, "RIGHT", -46, 0)
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(bar5Anchor, "PUIHotbars_Bar5", "PUIHotbars: Right Bar 2", "BARS")
         end
     end
+
+    local b5Scale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Bar5")) or defaultBarScale
+    bar5Anchor:SetScale(b5Scale)
 
     self:LayoutMatrix(bar5Anchor, MultiBarLeft, "MultiBarLeftButton", 12, b5Cols, b5Rows, size, spacing)
     if hotbarsDB:Get("showBar5", false) then
@@ -380,14 +406,17 @@ function PUIHotbars:ApplyLayout()
         stanceAnchor = CreateFrame("Frame", "Primus_PUIHotbars_StanceBar", UIParent)
         stanceAnchor:SetPoint("BOTTOM", UIParent, "BOTTOM", -140, 138)
         stanceAnchor:SetFrameStrata("MEDIUM")
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(stanceAnchor, "PUIHotbars_Stance", "PUIHotbars: Stance / Shapeshift Bar", "BARS")
         end
     end
 
+    local stScale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Stance")) or defaultBarScale
+    stanceAnchor:SetScale(stScale)
+
     if ShapeshiftBarFrame then
-        ShapeshiftBarFrame:SetParent(UIParent)
+        if ShapeshiftBarFrame.SetParent then ShapeshiftBarFrame:SetParent(stanceAnchor) end
+        if ShapeshiftBarFrame.SetScale then ShapeshiftBarFrame:SetScale(1.0) end
         ShapeshiftBarFrame:SetFrameStrata("MEDIUM")
         ShapeshiftBarFrame:SetFrameLevel(stanceAnchor:GetFrameLevel() + 1)
         ShapeshiftBarFrame:ClearAllPoints()
@@ -439,14 +468,17 @@ function PUIHotbars:ApplyLayout()
         petAnchor = CreateFrame("Frame", "Primus_PUIHotbars_PetBar", UIParent)
         petAnchor:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 138)
         petAnchor:SetFrameStrata("MEDIUM")
-        local mover = PUIMover or Primus.PUIMover
         if mover and mover.Register then
             mover:Register(petAnchor, "PUIHotbars_Pet", "PUIHotbars: Pet Bar", "BARS")
         end
     end
 
+    local petScale = (mover and mover.GetScale and mover:GetScale("PUIHotbars_Pet")) or defaultBarScale
+    petAnchor:SetScale(petScale)
+
     if PetActionBarFrame then
-        PetActionBarFrame:SetParent(UIParent)
+        if PetActionBarFrame.SetParent then PetActionBarFrame:SetParent(petAnchor) end
+        if PetActionBarFrame.SetScale then PetActionBarFrame:SetScale(1.0) end
         PetActionBarFrame:SetFrameStrata("MEDIUM")
         PetActionBarFrame:SetFrameLevel(petAnchor:GetFrameLevel() + 1)
         PetActionBarFrame:ClearAllPoints()
@@ -525,7 +557,7 @@ end
 local function BuildHotbarsOptionsPanel(parent)
     local p = CreateFrame("Frame", nil, parent)
     p:SetWidth(500)
-    p:SetHeight(520)
+    p:SetHeight(580)
 
     local title = p:CreateFontString(nil, "OVERLAY")
     title:SetFont(Media:Fetch("font", "Default"), 11, "OUTLINE")
@@ -612,7 +644,7 @@ local function BuildHotbarsOptionsPanel(parent)
     end)
     cbKeyring:SetPoint("TOPLEFT", cbSingleBag, "BOTTOMLEFT", 0, -2)
 
-    -- Sizing & Tints
+    -- Sizing, Scaling & Tints
     local sSize = Widgets:CreateSlider(p, "Button Size", 24, 48, 2, hotbarsDB:Get("buttonSize", 36), function(val)
         hotbarsDB:Set("buttonSize", val)
         PUIHotbars:ApplyLayout()
@@ -625,10 +657,29 @@ local function BuildHotbarsOptionsPanel(parent)
     end)
     sSpacing:SetPoint("TOPLEFT", sSize, "BOTTOMLEFT", 0, -12)
 
+    local sScale = Widgets:CreateSlider(p, "Action Bar Global Scale", 0.5, 1.5, 0.05, hotbarsDB:Get("barScale", 1.0), function(val)
+        hotbarsDB:Set("barScale", val)
+        local m = Primus.PUIMover or PUIMover or _G.PUIMover
+        if m and m.SetScale then
+            m:SetScale("PUIHotbars_Bar1", val, true)
+            m:SetScale("PUIHotbars_Bar2", val, true)
+            m:SetScale("PUIHotbars_Bar3", val, true)
+            m:SetScale("PUIHotbars_Bar4", val, true)
+            m:SetScale("PUIHotbars_Bar5", val, true)
+            m:SetScale("PUIHotbars_Stance", val, true)
+            m:SetScale("PUIHotbars_Pet", val, true)
+            m:SetScale("PUIHotbars_XP", val, true)
+            m:SetScale("PUIHotbars_Micro", val, true)
+            m:SetScale("PUIHotbars_Bags", val, true)
+        end
+        PUIHotbars:ApplyLayout()
+    end)
+    sScale:SetPoint("TOPLEFT", sSpacing, "BOTTOMLEFT", 0, -12)
+
     local cbRange = Widgets:CreateCheckButton(p, "Out-of-Range Red Icon Tinting", hotbarsDB:Get("rangeTint", true), function(checked)
         hotbarsDB:Set("rangeTint", checked)
     end)
-    cbRange:SetPoint("TOPLEFT", sSpacing, "BOTTOMLEFT", 0, -8)
+    cbRange:SetPoint("TOPLEFT", sScale, "BOTTOMLEFT", 0, -8)
 
     local cbMana = Widgets:CreateCheckButton(p, "Out-of-Mana Blue Icon Tinting", hotbarsDB:Get("manaTint", true), function(checked)
         hotbarsDB:Set("manaTint", checked)

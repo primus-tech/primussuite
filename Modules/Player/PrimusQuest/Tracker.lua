@@ -916,4 +916,262 @@ function Tracker:Update()
 
     mPin:ClearAllPoints()
     mPin:SetPoint("CENTER", Minimap, "CENTER", nx, ny)
+
+    -- 3. UPDATE MINIMAP AVAILABLE & LOW-LEVEL QUEST PINS
+    self:UpdateMinimapQuestPins(px, py, mapWidth, mapHeight, mapZoom, playerFacingCCW, isRotating, isSquare)
+end
+
+-- =========================================================================
+-- MINIMAP AVAILABLE & LOW-LEVEL QUEST PINS ENGINE
+-- =========================================================================
+
+local minimapQuestPins = {}
+local minimapQuestPool = {}
+local cachedZoneQuests = nil
+local cachedZoneName = nil
+local cachedZonePlayerLevel = 0
+local cachedZoneShowLow = nil
+
+function Tracker:InvalidateZoneCache()
+    cachedZoneQuests = nil
+    cachedZoneName = nil
+end
+
+local function ReleaseAllMinimapQuestPins()
+    local num = table.getn(minimapQuestPins)
+    for i = num, 1, -1 do
+        local p = table.remove(minimapQuestPins, i)
+        if p then
+            p:Hide()
+            table.insert(minimapQuestPool, p)
+        end
+    end
+end
+
+local function AcquireMinimapQuestPin()
+    local pin = table.remove(minimapQuestPool)
+    if not pin then
+        local idx = table.getn(minimapQuestPins) + table.getn(minimapQuestPool) + 1
+        pin = CreateFrame("Button", "PUIQuest_MinimapQPin_" .. idx, Minimap)
+        pin:SetWidth(14)
+        pin:SetHeight(14)
+        pin:SetBackdrop(Media:Fetch("border", "1Pixel"))
+        pin:SetBackdropColor(0.08, 0.08, 0.10, 0.85)
+        pin:SetFrameLevel(Minimap:GetFrameLevel() + 8)
+        pin:EnableMouse(true)
+
+        local lbl = pin:CreateFontString(nil, "OVERLAY")
+        lbl:SetFont(Media:Fetch("font", "Default"), 11, "OUTLINE")
+        lbl:SetPoint("CENTER", pin, "CENTER", 0, 0)
+        pin.label = lbl
+
+        pin:SetScript("OnEnter", function()
+            if not this.data then return end
+            GameTooltip:SetOwner(this, "ANCHOR_TOPRIGHT")
+            GameTooltip:ClearLines()
+            local d = this.data
+            local r = d.r or 1.0
+            local g = d.g or 0.82
+            local b = d.b or 0.0
+            GameTooltip:AddLine(string.format("[%d] %s", d.level or 0, d.title or "Quest"), r, g, b)
+            GameTooltip:AddLine(string.format("Quest Giver: |cffffffff%s|r", d.npcName or "NPC"), 1, 0.82, 0)
+            if d.isLowLevel then
+                GameTooltip:AddLine("Status: |cff9d9d9dLow-Level / Trivial Quest|r", 0.65, 0.65, 0.65)
+            else
+                GameTooltip:AddLine("Status: |cffffd100Available Quest|r", 0.7, 0.7, 0.7)
+            end
+            if d.minLevel and d.minLevel > 1 then
+                GameTooltip:AddLine(string.format("Requires Level: %d", d.minLevel), 0.6, 0.6, 0.6)
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("|cff00e5ffLeft-Click:|r Lock HUD Navigation on this Quest", 0.4, 0.85, 1.0)
+            GameTooltip:Show()
+        end)
+
+        pin:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        pin:SetScript("OnClick", function()
+            if this.data and this.data.title then
+                PUIQuest:FocusQuest(this.data.title)
+            end
+        end)
+    end
+    pin:ClearAllPoints()
+    pin:Show()
+    table.insert(minimapQuestPins, pin)
+    return pin
+end
+
+function Tracker:GetZoneAvailableQuests(currentZoneName, mapZone)
+    local pLevel = UnitLevel("player") or 1
+    local showLow = PUIQuest.db and PUIQuest.db:Get("showLowLevelQuests", true)
+    if cachedZoneQuests and cachedZoneName == currentZoneName and cachedZonePlayerLevel == pLevel and cachedZoneShowLow == showLow then
+        return cachedZoneQuests
+    end
+
+    cachedZoneQuests = {}
+    cachedZoneName = currentZoneName
+    cachedZonePlayerLevel = pLevel
+    cachedZoneShowLow = showLow
+
+    local DB = PUIQuest.DB
+    local questData = DB and DB["quests"] and DB["quests"]["data"]
+    if not questData or not currentZoneName or currentZoneName == "" then return cachedZoneQuests end
+
+    local numEntries = GetNumQuestLogEntries() or 0
+    local GetZoneCoords = PUIQuest.GetZoneCoords
+    local GetDifficultyColor = PUIQuest.GetDifficultyColor
+
+    for qID, qInfo in pairs(questData) do
+        local minLvl = qInfo["min"] or 1
+        local qLvl = qInfo["lvl"] or minLvl
+        local diff = qLvl - pLevel
+        local isLowLevel = (diff <= -5)
+        local isComplete = PUIQuest.IsQuestCompleted and PUIQuest:IsQuestCompleted(qID)
+        local prereqsMet = (not PUIQuest.ArePrereqsCompleted) or PUIQuest:ArePrereqsCompleted(qID)
+
+        if not isComplete and prereqsMet and pLevel >= minLvl and (not isLowLevel or showLow) then
+            local qEntry = PUIQuest.Database and PUIQuest.Database:FindQuest(qID)
+            local qTitle = qEntry and qEntry.title or ("Quest #" .. qID)
+            local inLog = false
+            for i = 1, numEntries do
+                if GetQuestLogTitle(i) == qTitle then inLog = true; break end
+            end
+
+            if not inLog then
+                local col = isLowLevel and { r = 0.65, g = 0.65, b = 0.65 } or (GetDifficultyColor and GetDifficultyColor(qLvl) or { r = 1, g = 0.82, b = 0 })
+
+                -- Unit Quest Givers
+                if qInfo["start"] and qInfo["start"]["U"] then
+                    for _, uID in pairs(qInfo["start"]["U"]) do
+                        local unit = PUIQuest.Database and PUIQuest.Database:FindUnit(uID)
+                        if unit and unit.spawns and GetZoneCoords then
+                            local coords = GetZoneCoords(unit.spawns, currentZoneName, mapZone)
+                            local numCoords = table.getn(coords)
+                            for cIdx = 1, numCoords do
+                                local coord = coords[cIdx]
+                                table.insert(cachedZoneQuests, {
+                                    title = qTitle,
+                                    level = qLvl,
+                                    minLevel = minLvl,
+                                    npcName = unit.name,
+                                    isLowLevel = isLowLevel,
+                                    x = coord.x / 100.0,
+                                    y = coord.y / 100.0,
+                                    r = col.r,
+                                    g = col.g,
+                                    b = col.b,
+                                })
+                            end
+                        end
+                    end
+                end
+
+                -- Object Quest Givers
+                if qInfo["start"] and qInfo["start"]["O"] then
+                    for _, oID in pairs(qInfo["start"]["O"]) do
+                        local obj = PUIQuest.Database and PUIQuest.Database:FindObject(oID)
+                        if obj and obj.spawns and GetZoneCoords then
+                            local coords = GetZoneCoords(obj.spawns, currentZoneName, mapZone)
+                            local numCoords = table.getn(coords)
+                            for cIdx = 1, numCoords do
+                                local coord = coords[cIdx]
+                                table.insert(cachedZoneQuests, {
+                                    title = qTitle,
+                                    level = qLvl,
+                                    minLevel = minLvl,
+                                    npcName = obj.name,
+                                    isLowLevel = isLowLevel,
+                                    x = coord.x / 100.0,
+                                    y = coord.y / 100.0,
+                                    r = col.r,
+                                    g = col.g,
+                                    b = col.b,
+                                })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return cachedZoneQuests
+end
+
+function Tracker:UpdateMinimapQuestPins(px, py, mapWidth, mapHeight, mapZoom, playerFacingCCW, isRotating, isSquare)
+    if not PUIQuest.db or not PUIQuest.db:Get("enabled", true) or not PUIQuest.db:Get("showMinimapPins", true) or not PUIQuest.db:Get("showMinimapQuestPins", true) or not PUIQuest.db:Get("showAvailableQuests", true) then
+        ReleaseAllMinimapQuestPins()
+        return
+    end
+
+    local currentZoneName = GetZoneText and GetZoneText() or ""
+    local mapZone = GetCurrentMapZone() or 0
+    local quests = self:GetZoneAvailableQuests(currentZoneName, mapZone)
+    if not quests or table.getn(quests) == 0 then
+        ReleaseAllMinimapQuestPins()
+        return
+    end
+
+    local xDraw, yDraw
+    if mapWidth > 0 and mapHeight > 0 then
+        local xScale = mapZoom / mapWidth
+        local yScale = mapZoom / mapHeight
+        xDraw = Minimap:GetWidth() / xScale / 100
+        yDraw = Minimap:GetHeight() / yScale / 100
+    else
+        local fallbackScale = mapZoom * 1.2
+        xDraw = fallbackScale / 100 * 1.5
+        yDraw = fallbackScale / 100
+    end
+
+    local mw = Minimap:GetWidth()
+    local mh = Minimap:GetHeight()
+    local margin = 8
+    local radius = (math.min(mw, mh) / 2) - margin
+    local hw = (mw / 2) - margin
+    local hh = (mh / 2) - margin
+
+    local cosF = isRotating and math.cos(playerFacingCCW) or 1
+    local sinF = isRotating and math.sin(playerFacingCCW) or 0
+
+    ReleaseAllMinimapQuestPins()
+
+    local numQuests = table.getn(quests)
+    for i = 1, numQuests do
+        local q = quests[i]
+        local rawDx = q.x - px
+        local rawDy = q.y - py
+        local xPos = rawDx * 100 * xDraw
+        local yPos = rawDy * 100 * yDraw
+
+        local dxScreen, dyScreen
+        if isRotating then
+            dxScreen = xPos * cosF + (-yPos) * sinF
+            dyScreen = -xPos * sinF + (-yPos) * cosF
+        else
+            dxScreen = xPos
+            dyScreen = -yPos
+        end
+
+        local distOnMap = math.sqrt(dxScreen * dxScreen + dyScreen * dyScreen)
+        local inBounds = false
+        if isSquare then
+            inBounds = (math.abs(dxScreen) <= hw and math.abs(dyScreen) <= hh)
+        else
+            inBounds = (distOnMap <= radius)
+        end
+
+        -- Render quest pin directly on Minimap over quest giver
+        if inBounds then
+            local pin = AcquireMinimapQuestPin()
+            pin:SetPoint("CENTER", Minimap, "CENTER", dxScreen, dyScreen)
+            pin.data = q
+            pin.label:SetText("!")
+            pin.label:SetTextColor(q.r, q.g, q.b)
+            pin:SetBackdropBorderColor(q.r, q.g, q.b, 0.85)
+        end
+    end
 end
