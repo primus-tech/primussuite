@@ -42,7 +42,7 @@ local function GetFreeBagSlots()
     local free = 0
     for bag = 0, 4 do
         local numSlots = GetContainerNumSlots(bag)
-        if numSlots > 0 then
+        if numSlots and numSlots > 0 then
             for slot = 1, numSlots do
                 local link = GetContainerItemLink(bag, slot)
                 if not link then
@@ -72,10 +72,10 @@ local function ProcessNextMail()
         collectIndex = numItems
     end
 
-    local sender, subject, money, COD, daysLeft, hasItem, wasRead = GetInboxHeaderInfo(collectIndex)
+    local packageIcon, stationeryIcon, sender, subject, money, COD, daysLeft, hasItem, wasRead = GetInboxHeaderInfo(collectIndex)
 
     -- COD Protection
-    if COD and COD > 0 and mailboxDB.skipCOD then
+    if COD and type(COD) == "number" and COD > 0 and mailboxDB.skipCOD then
         DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText(string.format("[Mailbox]: Skipping COD Mail from %s (%s)", sender or "Unknown", Utils.FormatMoney(COD)), "ffbb33"))
         collectIndex = collectIndex - 1
         Time:After(0.25, ProcessNextMail)
@@ -83,7 +83,7 @@ local function ProcessNextMail()
     end
 
     -- Check Bag Space for Items
-    if hasItem and hasItem > 0 then
+    if hasItem and hasItem ~= 0 and hasItem ~= false then
         if GetFreeBagSlots() <= 0 then
             isCollecting = false
             openAllBtn:SetText("Bags Full!")
@@ -96,7 +96,7 @@ local function ProcessNextMail()
     end
 
     -- Collect Money
-    if money and money > 0 then
+    if money and type(money) == "number" and money > 0 then
         totalGoldCollected = totalGoldCollected + money
         TakeInboxMoney(collectIndex)
     end
