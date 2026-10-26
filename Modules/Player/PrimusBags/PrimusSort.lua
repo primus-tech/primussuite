@@ -217,9 +217,9 @@ function Sort:PlanTargets()
         end)
     end
 
-    -- 5. Sort General Non-Trash items (Retail WoW Hierarchy)
+    -- 5. Sort General Non-Trash items (Retail WoW Hierarchy with Tradeskill Tools)
     table.sort(generalNonTrash, function(a, b)
-        -- 1. Category Priority (1 = Hearthstone, 2 = Quest, 3 = Bound Gear, 4 = BoE Gear, 5 = Consumables, 6 = Mats, 7 = White Things)
+        -- 1. Category Priority (1 = Hearthstone, 2 = Tools, 3 = Quest, 4 = Bound Gear, 5 = BoE Gear, 6 = Consumables, 7 = Mats, 8 = White Things)
         if a.meta.priority ~= b.meta.priority then
             return a.meta.priority < b.meta.priority
         end

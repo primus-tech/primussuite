@@ -27,42 +27,45 @@ local Utils = Primus.Utils
 -- =========================================================================
 
 -- Lower priority number = sorted first (towards top-left of inventory)
--- Retail WoW Sorting Hierarchy:
--- Hearthstone -> Quest Objects -> Bound Gear -> BoE Gear -> Consumables -> Mats -> White Things / Utility -> Trash / Grey
+-- Sorting Hierarchy:
+-- Hearthstone -> Tradeskill Tools -> Quest Objects -> Bound Gear -> BoE Gear -> Consumables -> Mats -> White Things / Utility -> Trash / Grey
 Categories.PRIORITY = {
-    HEARTHSTONE = 1, -- Hearthstone
-    QUEST       = 2, -- Quest Items
-    BOUND_GEAR  = 3, -- Soulbound Equipment (Armor, Weapons, Trinkets, Rings, Shields)
-    BOE_GEAR    = 4, -- Bind on Equip / Unbound Equipment
-    CONSUMABLE  = 5, -- Food, Drink, Potions, Bandages, Elixirs, Flasks, Scrolls
-    TRADE_GOODS = 6, -- Cloth, Leather, Ore, Herbs, Gems, Meat, Elemental, Enchanting
-    UTILITY     = 7, -- White Things, Tools, Keys, Recipes, Manuals, Books, Common Misc
-    JUNK        = 8, -- Grey / Poor Quality Items (Trash)
-    EMPTY       = 9, -- Free Unoccupied Slots
+    HEARTHSTONE = 1,  -- Hearthstone
+    TOOLS       = 2,  -- Tradeskill & Profession Tools (Skinning Knife, Blacksmith Hammer, Mining Pick, etc.)
+    QUEST       = 3,  -- Quest Items
+    BOUND_GEAR  = 4,  -- Soulbound Equipment (Armor, Weapons, Trinkets, Rings, Shields)
+    BOE_GEAR    = 5,  -- Bind on Equip / Unbound Equipment
+    CONSUMABLE  = 6,  -- Food, Drink, Potions, Bandages, Elixirs, Flasks, Scrolls
+    TRADE_GOODS = 7,  -- Cloth, Leather, Ore, Herbs, Gems, Meat, Elemental, Enchanting
+    UTILITY     = 8,  -- White Things, Keys, Recipes, Manuals, Books, Common Misc
+    JUNK        = 9,  -- Grey / Poor Quality Items (Trash)
+    EMPTY       = 10, -- Free Unoccupied Slots
 }
 
 Categories.CATEGORY_NAMES = {
     [1] = "Hearthstone",
-    [2] = "Quest Items",
-    [3] = "Soulbound Gear",
-    [4] = "BoE Gear",
-    [5] = "Consumables",
-    [6] = "Trade Goods & Reagents",
-    [7] = "Utility & Common Items",
-    [8] = "Junk",
-    [9] = "Free Slots",
+    [2] = "Tradeskill Tools",
+    [3] = "Quest Items",
+    [4] = "Soulbound Gear",
+    [5] = "BoE Gear",
+    [6] = "Consumables",
+    [7] = "Trade Goods & Reagents",
+    [8] = "Utility & Common Items",
+    [9] = "Junk",
+    [10] = "Free Slots",
 }
 
 Categories.CATEGORY_ICONS = {
     [1] = "Interface\\Icons\\INV_Misc_Rune_01",
-    [2] = "Interface\\Icons\\INV_Misc_Book_08",
-    [3] = "Interface\\Icons\\INV_Chest_Chain",
-    [4] = "Interface\\Icons\\INV_Sword_04",
-    [5] = "Interface\\Icons\\INV_Potion_51",
-    [6] = "Interface\\Icons\\INV_Fabric_Silk_02",
-    [7] = "Interface\\Icons\\INV_Misc_Key_03",
-    [8] = "Interface\\Icons\\INV_Misc_Ruin_01",
-    [9] = "Interface\\Icons\\INV_Misc_QuestionMark",
+    [2] = "Interface\\Icons\\INV_Hammer_20",
+    [3] = "Interface\\Icons\\INV_Misc_Book_08",
+    [4] = "Interface\\Icons\\INV_Chest_Chain",
+    [5] = "Interface\\Icons\\INV_Sword_04",
+    [6] = "Interface\\Icons\\INV_Potion_51",
+    [7] = "Interface\\Icons\\INV_Fabric_Silk_02",
+    [8] = "Interface\\Icons\\INV_Misc_Key_03",
+    [9] = "Interface\\Icons\\INV_Misc_Ruin_01",
+    [10] = "Interface\\Icons\\INV_Misc_QuestionMark",
 }
 
 -- Special Container Types & Color Tints
@@ -276,10 +279,63 @@ function Categories:GetItemSpecialContainerType(itemLink, itemName, itemType, it
 end
 
 -- =========================================================================
+-- TRADESKILL & PROFESSION TOOLS DEFINITIONS
+-- =========================================================================
+
+local TRADESKILL_TOOL_IDS = {
+    [7005]  = true, -- Skinning Knife
+    [12709] = true, -- Pip's Skinner
+    [19727] = true, -- Finkle's Skinner
+    [5956]  = true, -- Blacksmith Hammer
+    [2901]  = true, -- Mining Pick
+    [1819]  = true, -- Mining Pick
+    [6219]  = true, -- Arclight Spanner
+    [10498] = true, -- Gyromatic Micro-Adjustor
+    [6218]  = true, -- Runed Copper Rod
+    [6339]  = true, -- Runed Silver Rod
+    [11130] = true, -- Runed Golden Rod
+    [11145] = true, -- Runed Truesilver Rod
+    [16207] = true, -- Runed Arcanite Rod
+    [9149]  = true, -- Philosopher's Stone
+    [13503] = true, -- Alchemist's Stone
+    [4471]  = true, -- Flint and Tinder
+    [5060]  = true, -- Thieves' Tools
+    [6256]  = true, -- Fishing Pole
+    [6365]  = true, -- Strong Fishing Pole
+    [6367]  = true, -- Big Iron Fishing Pole
+    [19970] = true, -- Nat Pagle's Extreme Angler FC-5000
+    [12225] = true, -- Blix's Eyesore Rod
+}
+
+local function IsTradeskillTool(itemID, nameLower, itemSubType)
+    if itemID and TRADESKILL_TOOL_IDS[itemID] then return true end
+    local subLower = string.lower(itemSubType or "")
+    if subLower == "fishing poles" or string.find(subLower, "fishing pole", 1, true) then
+        return true
+    end
+    if string.find(nameLower, "skinning knife", 1, true)
+        or string.find(nameLower, "blacksmith hammer", 1, true)
+        or string.find(nameLower, "mining pick", 1, true)
+        or string.find(nameLower, "arclight spanner", 1, true)
+        or string.find(nameLower, "gyromatic", 1, true)
+        or string.find(nameLower, "philosopher's stone", 1, true)
+        or string.find(nameLower, "thieves' tools", 1, true)
+        or string.find(nameLower, "flint and tinder", 1, true)
+        or string.find(nameLower, "fishing pole", 1, true)
+        or string.find(nameLower, "fishing rod", 1, true)
+        or (string.find(nameLower, "runed ", 1, true) and string.find(nameLower, " rod", 1, true))
+        or string.find(nameLower, "skinner", 1, true)
+    then
+        return true
+    end
+    return false
+end
+
+-- =========================================================================
 -- ITEM CLASSIFICATION
 -- =========================================================================
 
--- Classifies an item into priority category (1..8) and returns sort key metadata
+-- Classifies an item into priority category (1..9) and returns sort key metadata
 function Categories:ClassifyItem(bagID, slotID)
     local texture, itemCount, locked, quality = GetContainerItemInfo(bagID, slotID)
     if not texture then
@@ -329,7 +385,12 @@ function Categories:ClassifyItem(bagID, slotID)
     -- Scan tooltip flags for Soulbound and Quest
     local isSoulbound, isQuestTooltip = ScanBagItemFlags(bagID, slotID)
 
-    -- 3. Quest Items
+    -- 3. Tradeskill & Profession Tools (After Hearthstone, before Quest Objects)
+    if IsTradeskillTool(itemID, nameLower, itemSubType) then
+        return Categories.PRIORITY.TOOLS, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
+    end
+
+    -- 4. Quest Items
     if itemType == "Quest" or isQuestTooltip or (itemQuality == 4 and string.find(nameLower, "quest", 1, true)) then
         return Categories.PRIORITY.QUEST, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
     end
