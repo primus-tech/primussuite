@@ -250,10 +250,27 @@ function ItemHandler:Initialize()
             tt.SetBuybackItem = function(self, slot)
                 local ret = origSetBuybackItem and origSetBuybackItem(self, slot)
                 if PUITooltip:IsEnabled() then
-                    local link = GetBuybackItemLink(slot)
+                    local link = GetBuybackItemLink and GetBuybackItemLink(slot)
                     local itemID, quality = ParseItemLink(link)
+                    local name, texture, price, quantity
+                    if GetBuybackItemInfo then
+                        name, texture, price, quantity = GetBuybackItemInfo(slot)
+                    end
+                    if not link and name then
+                        local _, itemLink, itemQuality = GetItemInfo(name)
+                        link = itemLink
+                        if not quality then quality = itemQuality end
+                        if not itemID and link then itemID = ParseItemLink(link) end
+                    end
                     ItemHandler:ProcessItem(self, {
-                        buybackSlot = slot, link = link, itemID = itemID, quality = quality, source = "BUYBACK"
+                        buybackSlot = slot,
+                        link = link,
+                        itemID = itemID,
+                        quality = quality,
+                        name = name,
+                        count = quantity or 1,
+                        price = price,
+                        source = "BUYBACK"
                     })
                 end
                 return ret
