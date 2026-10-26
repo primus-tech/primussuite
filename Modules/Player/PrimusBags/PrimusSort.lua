@@ -13,7 +13,8 @@
        - Bottom slots: Trash loot (grey / quality 0) placed in the last available slots.
     3. Engine:
        - Target-driven live state machine.
-       - Throttled per-tick execution with ITEM_LOCK validation to prevent 1.12 packet drops.
+       - Pairwise slot lock validation (no global lock freezes).
+       - Anti-stall fallback re-planner so it can NEVER hang or freeze.
 --]]
 
 local _G = getglobals and getglobals() or _G or getfenv(0)
@@ -33,35 +34,47 @@ local Categories = PUIBags.Categories
 local isSorting = false
 local sortTickerFrame = nil
 local sortStartTime = 0
+local idleTicks = 0
 local MAX_SORT_TIMEOUT = 12.0
 local TICK_DELAY = 0.15 -- Vanilla 1.12 server-safe throttle delay
 
 -- Planned Target State: [bagID][slotID] = { key = "...", itemID = ..., count = ... } or nil (empty)
 local slotTargets = {}
-local totalMismatches = 0
 local initialMismatches = 0
 
 -- =========================================================================
 -- HELPER FUNCTIONS
 -- =========================================================================
 
-local function GetItemKey(link, isBound)
-    if not link then return nil end
-    local _, _, itemID, enchantID, suffixID, uniqueID = string.find(link, "item:(%d+):(%d*):(%d*):(%d*)")
-    return string.format("%s:%s:%s:%s:%s", itemID or 0, enchantID or 0, suffixID or 0, uniqueID or 0, isBound and 1 or 0)
+-- Unified item fingerprint for consistent matching everywhere
+local function GetSlotItemKey(bagID, slotID)
+    local link = GetContainerItemLink(bagID, slotID)
+    if not link then return nil, false, 0 end
+    local prio, name, qual, minLvl, iType, isBound = Categories:ClassifyItem(bagID, slotID)
+    local _, _, itemID, _, suffixID = string.find(link, "item:(%d+):(%d*):(%d*)")
+    local boundFlag = (isBound == true) and 1 or 0
+    local key = string.format("%s:%s:%d", itemID or 0, suffixID or 0, boundFlag)
+    return key, (isBound == true), tonumber(itemID) or 0
 end
 
-local function IsAnySlotLocked()
-    for bagID = 0, 4 do
-        local numSlots = GetContainerNumSlots(bagID) or 0
-        for slotID = 1, numSlots do
-            local _, _, locked = GetContainerItemInfo(bagID, slotID)
-            if locked then
-                return true
-            end
-        end
+-- Safely executes a two-way item swap between two container slots
+local function DoSwap(sB, sS, dB, dS)
+    local _, _, sLocked = GetContainerItemInfo(sB, sS)
+    local _, _, dLocked = GetContainerItemInfo(dB, dS)
+    if sLocked or dLocked then
+        return false -- Pair is locked by server, yield and retry next tick
     end
-    return false
+
+    ClearCursor()
+    PickupContainerItem(sB, sS)
+    PickupContainerItem(dB, dS)
+    if CursorHasItem() then
+        PickupContainerItem(sB, sS)
+    end
+    if CursorHasItem() then
+        ClearCursor()
+    end
+    return true
 end
 
 -- Partitions bag slots into General Slots and Dedicated Slots
@@ -115,11 +128,9 @@ function Sort:PlanTargets()
 
             if texture and itemLink then
                 local prio, name, qual, minLvl, iType, isBound = Categories:ClassifyItem(bagID, slotID)
-                local _, _, itemIDStr = string.find(itemLink, "item:(%d+)")
-                local itemID = tonumber(itemIDStr) or 0
                 local _, _, _, _, _, sType, maxStack = GetItemInfo(itemLink)
+                local key, _, itemID = GetSlotItemKey(bagID, slotID)
 
-                local key = GetItemKey(itemLink, isBound)
                 itemTotals[key] = (itemTotals[key] or 0) + (itemCount or 1)
 
                 if not itemMeta[key] then
@@ -193,7 +204,7 @@ function Sort:PlanTargets()
         end
     end
 
-    -- 4. Sort Dedicated items
+    -- 4. Sort Dedicated items (by MinLevel desc, Name asc, Count desc)
     for specType, stacks in pairs(dedicatedAssignments) do
         table.sort(stacks, function(a, b)
             if a.meta.minLevel ~= b.meta.minLevel then
@@ -298,6 +309,7 @@ end
 
 local function CleanupSort()
     isSorting = false
+    idleTicks = 0
     if sortTickerFrame then
         sortTickerFrame:Hide()
     end
@@ -328,11 +340,6 @@ local function StepSortEngine()
         end
     end
 
-    -- Lock State Check: Wait for server to acknowledge in-flight moves
-    if IsAnySlotLocked() then
-        return
-    end
-
     -- 1. Scan Live Inventory State
     local live = {}
     local mismatches = 0
@@ -345,12 +352,12 @@ local function StepSortEngine()
             local link = GetContainerItemLink(bagID, slotID)
 
             if texture and link then
-                local _, _, _, _, _, _, isBound = Categories:ClassifyItem(bagID, slotID)
-                local key = GetItemKey(link, isBound)
+                local key, isBound, itemID = GetSlotItemKey(bagID, slotID)
                 live[bagID][slotID] = {
                     bag = bagID,
                     slot = slotID,
                     key = key,
+                    itemID = itemID,
                     count = count or 1,
                     link = link,
                 }
@@ -386,8 +393,9 @@ local function StepSortEngine()
         PUIBags:OnSortProgress(done, initialMismatches)
     end
 
+    local movedThisTick = false
+
     -- 2. Phase A: Consolidate Partial Stacks Live
-    -- If two slots contain the same key and one has space, merge them
     for b1 = 0, 4 do
         local n1 = GetContainerNumSlots(b1) or 0
         for s1 = 1, n1 do
@@ -403,17 +411,15 @@ local function StepSortEngine()
                         for s2 = startS2, n2 do
                             local item2 = live[b2][s2]
                             if item2 and item2.key == item1.key and item2.count > 0 then
-                                -- Check if destination target needs this merge
                                 local target1 = slotTargets[b1] and slotTargets[b1][s1]
                                 local target2 = slotTargets[b2] and slotTargets[b2][s2]
 
-                                if not (target1 and target1.key == item1.key and item1.count == target1.count and target2 and target2.key == item2.key and item2.count == target2.count) then
-                                    PickupContainerItem(b2, s2)
-                                    PickupContainerItem(b1, s1)
-                                    if CursorHasItem() then
-                                        PickupContainerItem(b2, s2)
+                                local bothTargetCorrect = target1 and target1.key == item1.key and item1.count == target1.count and target2 and target2.key == item2.key and item2.count == target2.count
+                                if not bothTargetCorrect then
+                                    if DoSwap(b2, s2, b1, s1) then
+                                        idleTicks = 0
+                                        return -- Yield for server lock
                                     end
-                                    return -- Yield for lock
                                 end
                             end
                         end
@@ -424,7 +430,6 @@ local function StepSortEngine()
     end
 
     -- 3. Phase B: Satisfy Target Slots
-    -- Find the first slot that does not hold its desired target item
     for bagID = 0, 4 do
         local numSlots = GetContainerNumSlots(bagID) or 0
         for slotID = 1, numSlots do
@@ -432,13 +437,11 @@ local function StepSortEngine()
             local current = live[bagID][slotID]
 
             if target then
-                -- This slot wants a specific item
                 local isCorrect = current and (current.key == target.key) and (current.count == target.count)
                 if not isCorrect then
-                    -- Find an item in bags matching target.key
                     local srcBag, srcSlot = nil, nil
 
-                    -- Priority: Find exact count match first
+                    -- Priority 1: Find matching key with exact count
                     for sB = 0, 4 do
                         local sN = GetContainerNumSlots(sB) or 0
                         for sS = 1, sN do
@@ -456,7 +459,7 @@ local function StepSortEngine()
                         if srcBag then break end
                     end
 
-                    -- Secondary: Find any matching key
+                    -- Priority 2: Find matching key with any count
                     if not srcBag then
                         for sB = 0, 4 do
                             local sN = GetContainerNumSlots(sB) or 0
@@ -476,20 +479,35 @@ local function StepSortEngine()
                         end
                     end
 
-                    if srcBag and srcSlot then
-                        PickupContainerItem(srcBag, srcSlot)
-                        PickupContainerItem(bagID, slotID)
-                        if CursorHasItem() then
-                            PickupContainerItem(srcBag, srcSlot)
+                    -- Priority 3: Fallback by itemID if key had random suffix variation
+                    if not srcBag then
+                        for sB = 0, 4 do
+                            local sN = GetContainerNumSlots(sB) or 0
+                            for sS = 1, sN do
+                                if not (sB == bagID and sS == slotID) then
+                                    local sItem = live[sB][sS]
+                                    if sItem and sItem.itemID == target.meta.itemID then
+                                        srcBag, srcSlot = sB, sS
+                                        break
+                                    end
+                                end
+                            end
+                            if srcBag then break end
                         end
-                        return -- Yield for lock
+                    end
+
+                    if srcBag and srcSlot then
+                        if DoSwap(srcBag, srcSlot, bagID, slotID) then
+                            idleTicks = 0
+                            return -- Yield for server lock
+                        end
                     end
                 end
             end
         end
     end
 
-    -- 4. Phase C: Evacuate Items from Slots Planned as Empty
+    -- 4. Phase C: Evacuate Displaced Items from Slots Planned as Empty
     for bagID = 0, 4 do
         local numSlots = GetContainerNumSlots(bagID) or 0
         for slotID = 1, numSlots do
@@ -497,25 +515,29 @@ local function StepSortEngine()
             local current = live[bagID][slotID]
 
             if not target and current then
-                -- This slot should be empty, but has an item
-                -- Find another slot that should be empty and is currently empty
                 for eB = 0, 4 do
                     local eN = GetContainerNumSlots(eB) or 0
                     for eS = 1, eN do
                         local eTarget = slotTargets[eB] and slotTargets[eB][eS]
                         local eCurrent = live[eB][eS]
                         if not eTarget and not eCurrent then
-                            PickupContainerItem(bagID, slotID)
-                            PickupContainerItem(eB, eS)
-                            if CursorHasItem() then
-                                PickupContainerItem(bagID, slotID)
+                            if DoSwap(bagID, slotID, eB, eS) then
+                                idleTicks = 0
+                                return -- Yield for server lock
                             end
-                            return -- Yield for lock
                         end
                     end
                 end
             end
         end
+    end
+
+    -- Anti-Stall Guard: If no valid move was made this tick, increment idle counter
+    idleTicks = idleTicks + 1
+    if idleTicks >= 4 then
+        -- Re-plan targets against live state to resolve any unexpected item count shifts
+        Sort:PlanTargets()
+        idleTicks = 0
     end
 end
 
@@ -533,18 +555,11 @@ function Sort:Start()
         ClearCursor()
     end
 
-    if IsAnySlotLocked() then
-        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIBags]: Cannot sort while items are locked.", "ffbb33"))
-        return
-    end
-
     -- Plan desired target layout
     self:PlanTargets()
 
     -- Check if inventory already matches planned layout
-    local generalSlots, dedicatedSlots = GetInventorySlots()
     local mismatches = 0
-
     for bagID = 0, 4 do
         local numSlots = GetContainerNumSlots(bagID) or 0
         for slotID = 1, numSlots do
@@ -552,8 +567,7 @@ function Sort:Start()
             local link = GetContainerItemLink(bagID, slotID)
             local key = nil
             if texture and link then
-                local _, _, _, _, _, _, isBound = Categories:ClassifyItem(bagID, slotID)
-                key = GetItemKey(link, isBound)
+                key = GetSlotItemKey(bagID, slotID)
             end
 
             local target = slotTargets[bagID] and slotTargets[bagID][slotID]
@@ -572,6 +586,7 @@ function Sort:Start()
     end
 
     isSorting = true
+    idleTicks = 0
     initialMismatches = mismatches
     sortStartTime = GetTime()
 

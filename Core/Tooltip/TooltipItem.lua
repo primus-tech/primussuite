@@ -22,7 +22,7 @@ local Skin = PUITooltip.Skin
 local function ParseItemLink(link)
     if not link then return nil, nil end
     local _, _, itemID = string.find(link, "item:(%d+)")
-    local _, _, _, _, _, _, _, _, _, _, quality = GetItemInfo(link)
+    local _, _, quality = GetItemInfo(link)
     if not quality and itemID then
         local _, _, qStr = string.find(link, "|cff(%x+)|H")
         -- Quality fallback resolution
@@ -44,6 +44,10 @@ end
 function ItemHandler:ProcessItem(tooltip, itemData)
     if not tooltip or not itemData then return end
     
+    -- Reset per-pass injection flags
+    tooltip._primusSellValueInjected = nil
+    tooltip._hasVendorPrice = nil
+
     local settings = PUITooltip:GetSettings()
     
     -- 1. Apply Item Quality Border
@@ -59,6 +63,29 @@ function ItemHandler:ProcessItem(tooltip, itemData)
         end
     end
     
+    -- 3. Core Universal Vendor Price Fallback
+    if not tooltip._primusSellValueInjected and not tooltip._hasVendorPrice then
+        local Items = Primus.Items
+        local Utils = Primus.Utils
+        if Items and Items.GetSellPrice and itemData.itemID then
+            local sellPrice = Items:GetSellPrice(itemData.itemID)
+            if sellPrice and sellPrice > 0 then
+                local hasBlizzNative = (tooltip == GameTooltip and GameTooltipMoneyFrame1 and GameTooltipMoneyFrame1:IsShown())
+                if not hasBlizzNative then
+                    local count = itemData.count or 1
+                    if count > 1 then
+                        local totalStr = Utils.FormatMoney(sellPrice * count)
+                        local eachStr  = Utils.FormatMoney(sellPrice)
+                        tooltip:AddDoubleLine(string.format("|cffffd100Vendor Sell (x%d):|r", count), string.format("%s (%s ea)", totalStr, eachStr))
+                    else
+                        tooltip:AddDoubleLine("|cffffd100Vendor Sell:|r", Utils.FormatMoney(sellPrice))
+                    end
+                    tooltip._hasVendorPrice = true
+                end
+            end
+        end
+    end
+
     tooltip:Show()
 end
 

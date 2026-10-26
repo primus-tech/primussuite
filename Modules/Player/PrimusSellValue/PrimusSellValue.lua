@@ -458,6 +458,7 @@ end
 
 function PUISellValue:OnTooltipProcess(tooltip, itemData)
     if not tooltip or not itemData or not sellDB:Get("enabled", true) then return end
+    tooltip._primusSellValueInjected = nil
     local itemID = itemData.itemID or self:ExtractItemID(itemData.link)
     local count = itemData.count or 1
     self:InjectTooltipPrice(tooltip, itemID or itemData.link, count)
