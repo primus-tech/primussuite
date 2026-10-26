@@ -159,7 +159,7 @@ local HERB_NAMES = {
 -- Detect if a bag (1..4) is a specialized container
 function Categories:GetSpecialContainerType(bagID)
     if not bagID or bagID <= 0 or bagID > 4 then return nil end
-    local invSlot = ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)
+    local invSlot = (ContainerIDToInventoryID and ContainerIDToInventoryID(bagID)) or (bagID + 19)
     if not invSlot then return nil end
 
     local bagLink = GetInventoryItemLink("player", invSlot)

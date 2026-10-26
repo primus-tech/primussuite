@@ -91,20 +91,25 @@ end
 
 -- Checks if an item can be legally placed into a container bag
 local function CanItemGoInBag(bagID, itemLink)
-    if not bagID or bagID == 0 then return true end
+    if not bagID or bagID <= 0 or bagID > 4 then return true end
     local specType = cachedBagSpecialTypes[bagID]
     if not specType then return true end -- Standard bag accepts all items
     if not itemLink then return true end
 
-    local name, _, _, _, itemType, itemSubType = GetItemInfo(itemLink)
     local _, _, itemID = string.find(itemLink, "item:(%d+)")
     itemID = tonumber(itemID) or 0
+    local name, _, _, _, itemType, itemSubType = GetItemInfo(itemID)
+    if not name then
+        name, _, _, _, itemType, itemSubType = GetItemInfo(itemLink)
+    end
     local itemSpec = Categories:GetItemSpecialContainerType(itemLink, name, itemType, itemSubType, itemID)
     return itemSpec == specType
 end
 
 -- Safely executes a two-way item swap between two container slots with quarantine validation
 local function DoSwap(sB, sS, dB, dS)
+    if sB == dB and sS == dS then return false end
+
     local _, _, sLocked = GetContainerItemInfo(sB, sS)
     local _, _, dLocked = GetContainerItemInfo(dB, dS)
     if sLocked or dLocked then
@@ -125,12 +130,6 @@ local function DoSwap(sB, sS, dB, dS)
     ClearCursor()
     PickupContainerItem(sB, sS)
     PickupContainerItem(dB, dS)
-    if CursorHasItem() then
-        PickupContainerItem(sB, sS)
-    end
-    if CursorHasItem() then
-        ClearCursor()
-    end
     return true
 end
 
@@ -765,7 +764,13 @@ function Sort:Start()
             this.elapsed = (this.elapsed or 0) + arg1
             if this.elapsed >= TICK_DELAY then
                 this.elapsed = 0
-                StepSortEngine()
+                local status, err = pcall(StepSortEngine)
+                if not status and err then
+                    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+                        DEFAULT_CHAT_FRAME:AddMessage("|cffff4444[PUIBags Sort Error]: " .. tostring(err) .. "|r")
+                    end
+                    CleanupSort()
+                end
             end
         end)
     end
