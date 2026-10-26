@@ -161,7 +161,12 @@ function Sort:PlanTargets()
                 local _, _, _, _, _, sType, maxStack = GetItemInfo(itemLink)
                 local key, _, itemID = GetSlotItemKey(bagID, slotID)
 
-                itemTotals[key] = (itemTotals[key] or 0) + (itemCount or 1)
+                local cCount = tonumber(itemCount) or 1
+                if cCount <= 0 then cCount = 1 end
+                itemTotals[key] = (itemTotals[key] or 0) + cCount
+
+                local mStack = tonumber(maxStack) or 1
+                if mStack <= 0 then mStack = 1 end
 
                 if not itemMeta[key] then
                     itemMeta[key] = {
@@ -175,7 +180,7 @@ function Sort:PlanTargets()
                         priority = prio,
                         isBound = isBound,
                         link = itemLink,
-                        maxStack = maxStack or 1,
+                        maxStack = mStack,
                     }
                 end
             end
@@ -186,7 +191,8 @@ function Sort:PlanTargets()
     local allStacks = {}
     for key, totalCount in pairs(itemTotals) do
         local meta = itemMeta[key]
-        local maxStack = meta.maxStack or 1
+        local maxStack = tonumber(meta.maxStack) or 1
+        if maxStack <= 0 then maxStack = 1 end
         local remaining = totalCount
 
         while remaining > 0 do
@@ -344,10 +350,10 @@ local function CleanupSort()
         sortTickerFrame:Hide()
     end
     if PUIBags.OnSortFinished then
-        PUIBags:OnSortFinished()
+        pcall(PUIBags.OnSortFinished, PUIBags)
     end
     if PUIBags.UpdateBagSlots then
-        PUIBags:UpdateBagSlots()
+        pcall(PUIBags.UpdateBagSlots, PUIBags)
     end
 end
 
@@ -421,7 +427,7 @@ local function StepSortEngine()
 
     if PUIBags.OnSortProgress then
         local done = math.max(0, initialMismatches - mismatches)
-        PUIBags:OnSortProgress(done, initialMismatches)
+        pcall(PUIBags.OnSortProgress, PUIBags, done, initialMismatches)
     end
 
     -- =========================================================================
@@ -695,8 +701,14 @@ end
 
 function Sort:Start()
     if isSorting then
-        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIBags]: Sorting already in progress...", "ffbb33"))
-        return
+        if (GetTime() - sortStartTime) > MAX_SORT_TIMEOUT then
+            CleanupSort()
+        else
+            if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+                DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIBags]: Sorting already in progress...", "ffbb33"))
+            end
+            return
+        end
     end
 
     if CursorHasItem() then
@@ -719,7 +731,8 @@ function Sort:Start()
             end
 
             local target = slotTargets[bagID] and slotTargets[bagID][slotID]
-            if target and (not key or key ~= target.key or count ~= target.count) then
+            local cCount = (count and count > 0) and count or 1
+            if target and (not key or key ~= target.key or cCount ~= target.count) then
                 mismatches = mismatches + 1
             elseif not target and key then
                 mismatches = mismatches + 1
@@ -728,8 +741,10 @@ function Sort:Start()
     end
 
     if mismatches == 0 then
-        DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIBags]: Inventory is already organized.", "69ccf0"))
-        if PUIBags.UpdateBagSlots then PUIBags:UpdateBagSlots() end
+        if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+            DEFAULT_CHAT_FRAME:AddMessage(Utils.ColorText("[PUIBags]: Inventory is already organized.", "69ccf0"))
+        end
+        if PUIBags.UpdateBagSlots then pcall(PUIBags.UpdateBagSlots, PUIBags) end
         return
     end
 
@@ -739,7 +754,7 @@ function Sort:Start()
     sortStartTime = GetTime()
 
     if PUIBags.OnSortStarted then
-        PUIBags:OnSortStarted(initialMismatches)
+        pcall(PUIBags.OnSortStarted, PUIBags, initialMismatches)
     end
 
     if not sortTickerFrame then

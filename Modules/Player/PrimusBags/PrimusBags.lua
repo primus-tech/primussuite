@@ -866,27 +866,36 @@ end
 -- =========================================================================
 
 function PUIBags:SortBags()
-    if Sort and Sort.Start then
-        Sort:Start()
+    local s = PUIBags.Sort or Sort
+    if s and s.Start then
+        s:Start()
+    elseif DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage("[PUIBags]: Sorter module not loaded.")
     end
 end
 
 function PUIBags:OnSortStarted(totalMoves)
     if bagFrame and bagFrame.sortBtn then
-        bagFrame.sortBtn:SetText("...")
-        bagFrame.sortBtn:Disable()
+        if bagFrame.sortBtn.label then
+            bagFrame.sortBtn.label:SetText("...")
+        end
     end
 end
 
 function PUIBags:OnSortProgress(current, total)
     if bagFrame and bagFrame.sortBtn then
-        bagFrame.sortBtn:SetText(string.format("%d%%", math.floor((current / total) * 100)))
+        if bagFrame.sortBtn.label then
+            local pct = (total and total > 0) and math.floor((current / total) * 100) or 0
+            bagFrame.sortBtn.label:SetText(string.format("%d%%", pct))
+        end
     end
 end
 
 function PUIBags:OnSortFinished()
     if bagFrame and bagFrame.sortBtn then
-        bagFrame.sortBtn:SetText("Sort")
+        if bagFrame.sortBtn.label then
+            bagFrame.sortBtn.label:SetText("Sort")
+        end
         bagFrame.sortBtn:Enable()
     end
 end
@@ -1017,6 +1026,8 @@ function PUIBags:OnInitialize()
     sortText:SetText("Sort")
     sortText:SetTextColor(0.4, 0.85, 1.0)
     sortBtn.label = sortText
+    sortBtn:RegisterForClicks("LeftButtonUp")
+    sortBtn:Enable()
 
     sortBtn:SetScript("OnClick", function()
         PUIBags:SortBags()
@@ -1390,4 +1401,19 @@ function PUIBags:Repaint()
     end
 
     self:UpdateBagSlots()
+end
+
+-- =========================================================================
+-- SLASH COMMAND REGISTRATION
+-- =========================================================================
+
+SLASH_PUIBAGSSORT1 = "/puisort"
+SLASH_PUIBAGSSORT2 = "/sortbags"
+SlashCmdList["PUIBAGSSORT"] = function()
+    PUIBags:SortBags()
+end
+
+if Primus.Console and Primus.Console.RegisterSubCommand then
+    Primus.Console:RegisterSubCommand("sort", function() PUIBags:SortBags() end, "Auto-sort inventory bags")
+    Primus.Console:RegisterAlias("sortbags", "sort")
 end
