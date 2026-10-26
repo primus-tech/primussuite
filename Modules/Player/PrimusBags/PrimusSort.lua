@@ -35,34 +35,196 @@ local MAX_SORT_TIMEOUT = 8.0 -- Safety timeout in seconds
 -- STACK DEFRAGMENTATION (CONSOLIDATION)
 -- =========================================================================
 
--- Scans all regular bags and merges partial stacks of the same item
-function Sort:ConsolidateStacks()
-    local partialStacks = {} -- [itemID] = { {bag=b, slot=s, count=c, maxStack=m}, ... }
+-- =========================================================================
+-- VIRTUAL BAG STATE BUILDER
+-- =========================================================================
 
+function Sort:BuildVirtualBags()
+    local vb = {}
     for bagID = 0, 4 do
-        -- Skip special bags for general consolidation (special bags handle their own items)
-        local isSpecial = Categories and Categories:GetSpecialContainerType(bagID)
+        vb[bagID] = {}
         local numSlots = GetContainerNumSlots(bagID) or 0
-
         for slotID = 1, numSlots do
             local texture, itemCount, locked, quality = GetContainerItemInfo(bagID, slotID)
             local itemLink = GetContainerItemLink(bagID, slotID)
 
-            if texture and itemCount and itemLink and not locked then
+            if texture and itemLink then
                 local _, _, itemIDStr = string.find(itemLink, "item:(%d+)")
-                local itemID = tonumber(itemIDStr)
-                local _, _, _, _, _, _, maxStack = GetItemInfo(itemLink)
+                local itemID = tonumber(itemIDStr) or 0
+                local name, _, qual, minLvl, iType, sType, maxStack = GetItemInfo(itemLink)
+                local prio, pName, pQual, pMinLvl, pType, isBound = Categories:ClassifyItem(bagID, slotID)
 
-                if itemID and maxStack and maxStack > 1 and itemCount < maxStack then
-                    if not partialStacks[itemID] then
-                        partialStacks[itemID] = {}
+                vb[bagID][slotID] = {
+                    bag = bagID,
+                    slot = slotID,
+                    itemID = itemID,
+                    name = name or pName or ("Item #" .. itemID),
+                    quality = qual or pQual or quality or 0,
+                    minLevel = minLvl or pMinLvl or 0,
+                    itemType = iType or pType or "",
+                    itemSubType = sType or "",
+                    count = itemCount or 1,
+                    maxStack = maxStack or 1,
+                    priority = prio,
+                    isBound = isBound,
+                    link = itemLink,
+                }
+            else
+                vb[bagID][slotID] = nil
+            end
+        end
+    end
+    return vb
+end
+
+-- =========================================================================
+-- SPECIAL CONTAINER PACKING (Ammo -> Quivers, Mats -> Specialty Bags)
+-- =========================================================================
+
+function Sort:PackSpecialContainers(vb)
+    local moves = {}
+
+    -- 1. Identify equipped specialized containers (quivers, pouches, soul bags, herb, mining, enchanting)
+    local specialBags = {}
+    for bagID = 1, 4 do
+        local specType = Categories:GetSpecialContainerType(bagID)
+        if specType then
+            table.insert(specialBags, {
+                bagID = bagID,
+                specType = specType,
+                numSlots = GetContainerNumSlots(bagID) or 0,
+            })
+        end
+    end
+
+    if table.getn(specialBags) == 0 then
+        return moves
+    end
+
+    -- Phase A: Consolidate partial stacks inside each special bag
+    for _, spec in ipairs(specialBags) do
+        local bID = spec.bagID
+        local numSlots = spec.numSlots
+        for s1 = 1, numSlots - 1 do
+            local it1 = vb[bID][s1]
+            if it1 and it1.maxStack > 1 and it1.count < it1.maxStack then
+                for s2 = s1 + 1, numSlots do
+                    local it2 = vb[bID][s2]
+                    if it2 and it2.itemID == it1.itemID and it2.count > 0 then
+                        local space = it1.maxStack - it1.count
+                        local transfer = math.min(space, it2.count)
+                        it1.count = it1.count + transfer
+                        it2.count = it2.count - transfer
+
+                        table.insert(moves, {
+                            fromBag = bID,
+                            fromSlot = s2,
+                            toBag = bID,
+                            toSlot = s1,
+                            type = "MERGE",
+                        })
+
+                        if it2.count == 0 then
+                            vb[bID][s2] = nil
+                        end
                     end
-                    table.insert(partialStacks[itemID], {
-                        bag = bagID,
-                        slot = slotID,
-                        count = itemCount,
-                        maxStack = maxStack,
-                    })
+                end
+            end
+        end
+    end
+
+    -- Phase B: Scan regular bags for items matching special bag types and pack them
+    for _, spec in ipairs(specialBags) do
+        local specBagID = spec.bagID
+        local specType = spec.specType
+        local specNumSlots = spec.numSlots
+
+        for regBagID = 0, 4 do
+            local isRegSpecial = Categories:GetSpecialContainerType(regBagID)
+            if not isRegSpecial then
+                local regSlots = GetContainerNumSlots(regBagID) or 0
+                for regSlotID = 1, regSlots do
+                    local regItem = vb[regBagID][regSlotID]
+                    if regItem and regItem.count > 0 then
+                        local matchingType = Categories:GetItemSpecialContainerType(
+                            regItem.link, regItem.name, regItem.itemType, regItem.itemSubType, regItem.itemID
+                        )
+
+                        if matchingType == specType then
+                            -- Step B1: Try merging into existing partial stacks in the special container
+                            if regItem.maxStack > 1 then
+                                for sSlot = 1, specNumSlots do
+                                    local sItem = vb[specBagID][sSlot]
+                                    if sItem and sItem.itemID == regItem.itemID and sItem.count < sItem.maxStack then
+                                        local space = sItem.maxStack - sItem.count
+                                        local transfer = math.min(space, regItem.count)
+                                        sItem.count = sItem.count + transfer
+                                        regItem.count = regItem.count - transfer
+
+                                        table.insert(moves, {
+                                            fromBag = regBagID,
+                                            fromSlot = regSlotID,
+                                            toBag = specBagID,
+                                            toSlot = sSlot,
+                                            type = "MERGE",
+                                        })
+
+                                        if regItem.count == 0 then
+                                            vb[regBagID][regSlotID] = nil
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+
+                            -- Step B2: If item still has remaining count, place in an empty slot in the special container
+                            if regItem and regItem.count > 0 then
+                                for sSlot = 1, specNumSlots do
+                                    if not vb[specBagID][sSlot] then
+                                        table.insert(moves, {
+                                            fromBag = regBagID,
+                                            fromSlot = regSlotID,
+                                            toBag = specBagID,
+                                            toSlot = sSlot,
+                                            type = "PACK",
+                                        })
+                                        vb[specBagID][sSlot] = regItem
+                                        regItem.bag = specBagID
+                                        regItem.slot = sSlot
+                                        vb[regBagID][regSlotID] = nil
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return moves
+end
+
+-- =========================================================================
+-- STACK DEFRAGMENTATION (CONSOLIDATION)
+-- =========================================================================
+
+-- Scans regular bags and merges partial stacks of the same item
+function Sort:ConsolidateStacks(vb)
+    local partialStacks = {} -- [itemID] = { itemRecord1, itemRecord2, ... }
+
+    for bagID = 0, 4 do
+        local isSpecial = Categories:GetSpecialContainerType(bagID)
+        if not isSpecial then
+            local numSlots = GetContainerNumSlots(bagID) or 0
+            for slotID = 1, numSlots do
+                local item = vb[bagID][slotID]
+                if item and item.maxStack > 1 and item.count < item.maxStack then
+                    if not partialStacks[item.itemID] then
+                        partialStacks[item.itemID] = {}
+                    end
+                    table.insert(partialStacks[item.itemID], item)
                 end
             end
         end
@@ -89,6 +251,10 @@ function Sort:ConsolidateStacks()
                             toSlot = target.slot,
                             type = "MERGE",
                         })
+
+                        if source.count == 0 then
+                            vb[source.bag][source.slot] = nil
+                        end
                     end
                 end
             end
@@ -99,48 +265,32 @@ function Sort:ConsolidateStacks()
 end
 
 -- =========================================================================
--- CATEGORY PRIORITY SORTING MATRIX
+-- CATEGORY PRIORITY SORTING MATRIX (Retail WoW Algorithm)
 -- =========================================================================
 
--- Computes the target ordering for all slots in regular bags
-function Sort:ComputeSortMoves()
-    local regularSlots = {} -- List of {bag, slot} in natural order
-    local items = {}        -- List of item records
+-- Computes target ordering for all slots in regular bags:
+-- Hearthstone -> Quest Objects -> Bound Gear -> BoE Gear -> Consumables -> Mats -> White Things -> Trash
+function Sort:ComputeSortMoves(vb)
+    local regularSlots = {}
+    local items = {}
 
     for bagID = 0, 4 do
-        local isSpecial = Categories and Categories:GetSpecialContainerType(bagID)
+        local isSpecial = Categories:GetSpecialContainerType(bagID)
         if not isSpecial then
             local numSlots = GetContainerNumSlots(bagID) or 0
             for slotID = 1, numSlots do
                 table.insert(regularSlots, { bag = bagID, slot = slotID })
-
-                local texture, itemCount, locked, quality = GetContainerItemInfo(bagID, slotID)
-                local itemLink = GetContainerItemLink(bagID, slotID)
-
-                if texture and itemLink then
-                    local prio, name, qual, minLvl, itemType = Categories:ClassifyItem(bagID, slotID)
-                    local _, _, itemIDStr = string.find(itemLink, "item:(%d+)")
-                    local itemID = tonumber(itemIDStr) or 0
-
-                    table.insert(items, {
-                        bag = bagID,
-                        slot = slotID,
-                        priority = prio,
-                        quality = qual or 0,
-                        minLevel = minLvl or 0,
-                        name = name or "",
-                        itemID = itemID,
-                        count = itemCount or 1,
-                        link = itemLink,
-                    })
+                local item = vb[bagID][slotID]
+                if item then
+                    table.insert(items, item)
                 end
             end
         end
     end
 
-    -- Sort items according to priority hierarchy
+    -- Sort items according to Retail WoW priority hierarchy
     table.sort(items, function(a, b)
-        -- 1. Category Priority (1 = Quest, 2 = Consumable, ..., 8 = Junk)
+        -- 1. Category Priority (1 = Hearthstone, 2 = Quest, 3 = Bound Gear, 4 = BoE Gear, 5 = Consumables, 6 = Mats, 7 = Utility, 8 = Junk)
         if a.priority ~= b.priority then
             return a.priority < b.priority
         end
@@ -148,11 +298,11 @@ function Sort:ComputeSortMoves()
         if a.quality ~= b.quality then
             return a.quality > b.quality
         end
-        -- 3. Min Level descending
+        -- 3. Min Level / Item Level descending
         if a.minLevel ~= b.minLevel then
             return a.minLevel > b.minLevel
         end
-        -- 4. Item Name ascending
+        -- 4. Item Name ascending (alphabetical)
         if a.name ~= b.name then
             return a.name < b.name
         end
@@ -163,49 +313,35 @@ function Sort:ComputeSortMoves()
         return a.itemID < b.itemID
     end)
 
-    -- Map items to target slot positions
-    local totalRegularSlots = table.getn(regularSlots)
+    -- Minimum swap cycle solver using vb state
     local numItems = table.getn(items)
     local moves = {}
 
-    -- Track current contents of all slots: slotKey -> itemRecord
-    local state = {}
-    for i = 1, totalRegularSlots do
-        local slotRef = regularSlots[i]
-        local key = string.format("%d:%d", slotRef.bag, slotRef.slot)
-        local texture, itemCount = GetContainerItemInfo(slotRef.bag, slotRef.slot)
-        local link = GetContainerItemLink(slotRef.bag, slotRef.slot)
-        if texture and link then
-            state[key] = { bag = slotRef.bag, slot = slotRef.slot, link = link, count = itemCount }
-        else
-            state[key] = nil
-        end
-    end
-
-    -- Selection Sort / Cycle Leader algorithm to generate minimum swap operations
     for targetIdx = 1, numItems do
         local targetSlot = regularSlots[targetIdx]
         local desiredItem = items[targetIdx]
 
-        -- Current item at targetSlot
-        local currentKey = string.format("%d:%d", targetSlot.bag, targetSlot.slot)
-        local currentInTarget = state[currentKey]
-
-        -- Check if targetSlot already holds the desired item (same link and count)
-        local isAlreadyCorrect = currentInTarget and (currentInTarget.bag == desiredItem.bag and currentInTarget.slot == desiredItem.slot)
+        local currentInTarget = vb[targetSlot.bag][targetSlot.slot]
+        local isAlreadyCorrect = currentInTarget and (currentInTarget == desiredItem)
 
         if not isAlreadyCorrect then
-            -- Find where the desired item currently resides in state
-            local sourceKey = nil
-            for k, curItem in pairs(state) do
-                if curItem and curItem.bag == desiredItem.bag and curItem.slot == desiredItem.slot then
-                    sourceKey = k
-                    break
+            -- Find where desiredItem currently resides in vb
+            local sBag, sSlot = nil, nil
+            for bagID = 0, 4 do
+                if not Categories:GetSpecialContainerType(bagID) then
+                    local numSlots = GetContainerNumSlots(bagID) or 0
+                    for slotID = 1, numSlots do
+                        if vb[bagID][slotID] == desiredItem then
+                            sBag = bagID
+                            sSlot = slotID
+                            break
+                        end
+                    end
+                    if sBag then break end
                 end
             end
 
-            if sourceKey and sourceKey ~= currentKey then
-                local sBag, sSlot = state[sourceKey].bag, state[sourceKey].slot
+            if sBag and (sBag ~= targetSlot.bag or sSlot ~= targetSlot.slot) then
                 local tBag, tSlot = targetSlot.bag, targetSlot.slot
 
                 table.insert(moves, {
@@ -217,9 +353,17 @@ function Sort:ComputeSortMoves()
                 })
 
                 -- Update simulated state
-                local temp = state[currentKey]
-                state[currentKey] = state[sourceKey]
-                state[sourceKey] = temp
+                local temp = vb[tBag][tSlot]
+                vb[tBag][tSlot] = vb[sBag][sSlot]
+                vb[sBag][sSlot] = temp
+                if vb[tBag][tSlot] then
+                    vb[tBag][tSlot].bag = tBag
+                    vb[tBag][tSlot].slot = tSlot
+                end
+                if vb[sBag][sSlot] then
+                    vb[sBag][sSlot].bag = sBag
+                    vb[sBag][sSlot].slot = sSlot
+                end
             end
         end
     end
@@ -256,9 +400,12 @@ local function StepSortQueue()
         return
     end
 
-    -- Cursor Safety: If cursor is holding an item unexpectedly, try to clear it or wait
+    -- Cursor Safety: If cursor is holding an item unexpectedly, safely restore to bags
     if CursorHasItem() then
-        return
+        ClearCursor()
+        if CursorHasItem() then
+            return
+        end
     end
 
     local totalMoves = table.getn(moveQueue)
@@ -286,6 +433,9 @@ local function StepSortQueue()
     -- Execute swap/merge
     PickupContainerItem(move.fromBag, move.fromSlot)
     PickupContainerItem(move.toBag, move.toSlot)
+    if CursorHasItem() then
+        PickupContainerItem(move.fromBag, move.fromSlot)
+    end
 
     currentMoveIndex = currentMoveIndex + 1
 
@@ -305,14 +455,21 @@ function Sort:Start()
         ClearCursor()
     end
 
-    -- Step 1: Defragment & consolidate partial stacks
-    local mergeMoves = self:ConsolidateStacks()
+    -- Step 0: Build initial virtual bag state
+    local vb = self:BuildVirtualBags()
 
-    -- Step 2: Compute category priority moves
-    local sortMoves = self:ComputeSortMoves()
+    -- Step 1: Pack special containers (Ammo -> Quivers/Pouches, Mats -> Specialty Bags)
+    local specialMoves = self:PackSpecialContainers(vb)
+
+    -- Step 2: Defragment & consolidate partial stacks
+    local mergeMoves = self:ConsolidateStacks(vb)
+
+    -- Step 3: Compute category priority moves (Retail WoW algorithm)
+    local sortMoves = self:ComputeSortMoves(vb)
 
     -- Merge move lists
     moveQueue = {}
+    for _, m in ipairs(specialMoves) do table.insert(moveQueue, m) end
     for _, m in ipairs(mergeMoves) do table.insert(moveQueue, m) end
     for _, m in ipairs(sortMoves) do table.insert(moveQueue, m) end
 

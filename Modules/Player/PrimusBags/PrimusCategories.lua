@@ -27,38 +27,40 @@ local Utils = Primus.Utils
 -- =========================================================================
 
 -- Lower priority number = sorted first (towards top-left of inventory)
+-- Retail WoW Sorting Hierarchy:
+-- Hearthstone -> Quest Objects -> Bound Gear -> BoE Gear -> Consumables -> Mats -> White Things / Utility -> Trash / Grey
 Categories.PRIORITY = {
-    QUEST       = 1, -- Quest Items
-    CONSUMABLE  = 2, -- Food, Drink, Potions, Bandages, Elixirs, Scrolls
-    TRADE_GOODS = 3, -- Cloth, Leather, Ore, Herbs, Gems, Meat, Elemental
-    EQUIPMENT   = 4, -- Weapons, Armor, Rings, Trinkets, Shields, Off-hands
-    UTILITY     = 5, -- Hearthstone, Keys, Mining Pick, Skinning Knife, Tools
-    RECIPE      = 6, -- Recipes, Formulas, Plans, Manuals, Patterns
-    MISC        = 7, -- Books, Toys, Pet Tokens, Miscellaneous
-    JUNK        = 8, -- Grey / Poor Quality Items
+    HEARTHSTONE = 1, -- Hearthstone
+    QUEST       = 2, -- Quest Items
+    BOUND_GEAR  = 3, -- Soulbound Equipment (Armor, Weapons, Trinkets, Rings, Shields)
+    BOE_GEAR    = 4, -- Bind on Equip / Unbound Equipment
+    CONSUMABLE  = 5, -- Food, Drink, Potions, Bandages, Elixirs, Flasks, Scrolls
+    TRADE_GOODS = 6, -- Cloth, Leather, Ore, Herbs, Gems, Meat, Elemental, Enchanting
+    UTILITY     = 7, -- White Things, Tools, Keys, Recipes, Manuals, Books, Common Misc
+    JUNK        = 8, -- Grey / Poor Quality Items (Trash)
     EMPTY       = 9, -- Free Unoccupied Slots
 }
 
 Categories.CATEGORY_NAMES = {
-    [1] = "Quest Items",
-    [2] = "Consumables",
-    [3] = "Trade Goods",
-    [4] = "Equipment",
-    [5] = "Utility & Tools",
-    [6] = "Recipes & Plans",
-    [7] = "Miscellaneous",
+    [1] = "Hearthstone",
+    [2] = "Quest Items",
+    [3] = "Soulbound Gear",
+    [4] = "BoE Gear",
+    [5] = "Consumables",
+    [6] = "Trade Goods & Reagents",
+    [7] = "Utility & Common Items",
     [8] = "Junk",
     [9] = "Free Slots",
 }
 
 Categories.CATEGORY_ICONS = {
-    [1] = "Interface\\Icons\\INV_Misc_Book_08",
-    [2] = "Interface\\Icons\\INV_Potion_51",
-    [3] = "Interface\\Icons\\INV_Fabric_Silk_02",
+    [1] = "Interface\\Icons\\INV_Misc_Rune_01",
+    [2] = "Interface\\Icons\\INV_Misc_Book_08",
+    [3] = "Interface\\Icons\\INV_Chest_Chain",
     [4] = "Interface\\Icons\\INV_Sword_04",
-    [5] = "Interface\\Icons\\INV_Misc_Key_03",
-    [6] = "Interface\\Icons\\INV_Scroll_03",
-    [7] = "Interface\\Icons\\INV_Misc_Bag_08",
+    [5] = "Interface\\Icons\\INV_Potion_51",
+    [6] = "Interface\\Icons\\INV_Fabric_Silk_02",
+    [7] = "Interface\\Icons\\INV_Misc_Key_03",
     [8] = "Interface\\Icons\\INV_Misc_Ruin_01",
     [9] = "Interface\\Icons\\INV_Misc_QuestionMark",
 }
@@ -103,9 +105,53 @@ Categories.SPECIAL_CONTAINERS = {
     },
 }
 
+-- Private Tooltip Scanner for Bag Item Flags
+local scanTooltip = CreateFrame("GameTooltip", "PUIBags_CategoryScanTooltip", UIParent, "GameTooltipTemplate")
+scanTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+
+local function ScanBagItemFlags(bagID, slotID)
+    local isSoulbound = false
+    local isQuest = false
+
+    scanTooltip:ClearLines()
+    scanTooltip:SetBagItem(bagID, slotID)
+    local numLines = scanTooltip:NumLines() or 0
+
+    for i = 1, numLines do
+        local leftLine = _G["PUIBags_CategoryScanTooltipTextLeft" .. i]
+        if leftLine then
+            local text = leftLine:GetText()
+            if text then
+                if text == ITEM_SOULBOUND or text == ITEM_BIND_ON_PICKUP or string.find(text, "Soulbound", 1, true) or string.find(text, "picked up", 1, true) then
+                    isSoulbound = true
+                end
+                if text == ITEM_BIND_QUEST or string.find(text, "Quest Item", 1, true) or string.find(text, "Begin a Quest", 1, true) then
+                    isQuest = true
+                end
+            end
+        end
+    end
+
+    return isSoulbound, isQuest
+end
+
 -- =========================================================================
--- SPECIAL CONTAINER DETECTION
+-- SPECIAL CONTAINER DETECTION & MATCHING
 -- =========================================================================
+
+-- Complete lookup of all Vanilla WoW 1.12.1 herbalism reagents
+local HERB_NAMES = {
+    ["peacebloom"] = true, ["silverleaf"] = true, ["earthroot"] = true,
+    ["mageroyal"] = true, ["briarthorn"] = true, ["stranglekelp"] = true,
+    ["bruiseweed"] = true, ["wild steelbloom"] = true, ["grave moss"] = true,
+    ["kingsblood"] = true, ["liferoot"] = true, ["fadeleaf"] = true,
+    ["goldthorn"] = true, ["khadgar's whisker"] = true, ["wintersbite"] = true,
+    ["firebloom"] = true, ["purple lotus"] = true, ["arthas' tears"] = true,
+    ["sungrass"] = true, ["blindweed"] = true, ["ghost mushroom"] = true,
+    ["gromsblood"] = true, ["golden sansam"] = true, ["dreamfoil"] = true,
+    ["mountain silversage"] = true, ["plaguebloom"] = true, ["icecap"] = true,
+    ["black lotus"] = true, ["bloodvine"] = true,
+}
 
 -- Detect if a bag (1..4) is a specialized container
 function Categories:GetSpecialContainerType(bagID)
@@ -120,18 +166,110 @@ function Categories:GetSpecialContainerType(bagID)
     local subLower = itemSubType and string.lower(itemSubType) or ""
     local nameLower = name and string.lower(name) or ""
 
-    if subLower == "quiver" or string.find(nameLower, "quiver", 1, true) then
+    -- Tooltip line scan for 100% accurate container type identification
+    scanTooltip:ClearLines()
+    scanTooltip:SetInventoryItem("player", invSlot)
+    local numLines = scanTooltip:NumLines() or 0
+    local fullTooltipText = ""
+    for i = 1, numLines do
+        local leftLine = _G["PUIBags_CategoryScanTooltipTextLeft" .. i]
+        if leftLine then
+            local t = leftLine:GetText()
+            if t then
+                fullTooltipText = fullTooltipText .. " " .. string.lower(t)
+            end
+        end
+    end
+
+    if nameLower == "" then
+        local line1 = _G["PUIBags_CategoryScanTooltipTextLeft1"]
+        nameLower = line1 and string.lower(line1:GetText() or "") or ""
+    end
+
+    -- Explicit exclusions for regular bags that might contain "pouch" or similar
+    if nameLower == "small brown pouch" or nameLower == "small pouch" then
+        return nil
+    end
+
+    -- 1. Quiver
+    if subLower == "quiver" or string.find(subLower, "quiver", 1, true) or string.find(nameLower, "quiver", 1, true) or string.find(fullTooltipText, "quiver", 1, true) then
         return "QUIVER", Categories.SPECIAL_CONTAINERS.QUIVER
-    elseif subLower == "ammo pouch" or string.find(nameLower, "pouch", 1, true) or string.find(nameLower, "ammo", 1, true) or string.find(nameLower, "bandolier", 1, true) or string.find(nameLower, "shot", 1, true) then
+    end
+
+    -- 2. Ammo Pouch (Bullets/Shot)
+    if subLower == "ammo pouch" or string.find(subLower, "ammo", 1, true) or string.find(nameLower, "ammo pouch", 1, true) or string.find(nameLower, "bandolier", 1, true) or string.find(fullTooltipText, "ammo pouch", 1, true) then
         return "AMMO_POUCH", Categories.SPECIAL_CONTAINERS.AMMO_POUCH
-    elseif subLower == "soul bag" or string.find(nameLower, "soul", 1, true) or string.find(nameLower, "felcloth bag", 1, true) or string.find(nameLower, "core felcloth bag", 1, true) or string.find(nameLower, "box of souls", 1, true) then
+    end
+
+    -- 3. Soul Bag (Warlock Soul Shards)
+    if subLower == "soul bag" or string.find(subLower, "soul", 1, true) or string.find(nameLower, "soul", 1, true) or string.find(nameLower, "felcloth bag", 1, true) or string.find(nameLower, "box of souls", 1, true) or string.find(fullTooltipText, "soul bag", 1, true) then
         return "SOUL_BAG", Categories.SPECIAL_CONTAINERS.SOUL_BAG
-    elseif subLower == "herb bag" or string.find(nameLower, "herb", 1, true) or string.find(nameLower, "cenarion", 1, true) then
+    end
+
+    -- 4. Herb Bag
+    if subLower == "herb bag" or string.find(subLower, "herb", 1, true) or string.find(nameLower, "herb bag", 1, true) or string.find(nameLower, "cenarion", 1, true) or string.find(fullTooltipText, "herb bag", 1, true) then
         return "HERB_BAG", Categories.SPECIAL_CONTAINERS.HERB_BAG
-    elseif subLower == "mining bag" or string.find(nameLower, "mining", 1, true) or string.find(nameLower, "miner", 1, true) or string.find(nameLower, "mammoth", 1, true) then
+    end
+
+    -- 5. Mining Bag / Sack
+    if subLower == "mining bag" or string.find(subLower, "mining", 1, true) or string.find(nameLower, "mining bag", 1, true) or string.find(nameLower, "mining sack", 1, true) or string.find(nameLower, "mammoth", 1, true) or string.find(fullTooltipText, "mining bag", 1, true) or string.find(fullTooltipText, "mining sack", 1, true) then
         return "MINING_BAG", Categories.SPECIAL_CONTAINERS.MINING_BAG
-    elseif subLower == "enchanting bag" or string.find(nameLower, "enchanting", 1, true) or string.find(nameLower, "spellfire", 1, true) then
+    end
+
+    -- 6. Enchanting Bag
+    if subLower == "enchanting bag" or string.find(subLower, "enchanting", 1, true) or string.find(nameLower, "enchanting bag", 1, true) or string.find(nameLower, "spellfire", 1, true) or string.find(fullTooltipText, "enchanting bag", 1, true) then
         return "ENCHANTING_BAG", Categories.SPECIAL_CONTAINERS.ENCHANTING_BAG
+    end
+
+    return nil
+end
+
+-- Checks if an item belongs in a specialized container type
+function Categories:GetItemSpecialContainerType(itemLink, itemName, itemType, itemSubType, itemID)
+    if not itemLink and not itemID then return nil end
+    local name = itemName or ""
+    local iType = itemType or ""
+    local sType = itemSubType or ""
+    local nameLower = string.lower(name)
+    local subLower = string.lower(sType)
+
+    -- 1. Quivers (Arrows only)
+    if subLower == "arrow" or string.find(nameLower, "arrow", 1, true) or nameLower == "doomshot" then
+        return "QUIVER"
+    end
+
+    -- 2. Ammo Pouches (Bullets / Shot only)
+    if (subLower == "bullet" or string.find(nameLower, "shot", 1, true) or string.find(nameLower, "bullet", 1, true) or string.find(nameLower, "shell", 1, true) or string.find(nameLower, "cannon ball", 1, true)) and nameLower ~= "doomshot" then
+        return "AMMO_POUCH"
+    end
+
+    -- 3. Soul Bags (Soul Shards only)
+    if itemID == 6265 or nameLower == "soul shard" or string.find(nameLower, "soul shard", 1, true) then
+        return "SOUL_BAG"
+    end
+
+    -- 4. Herb Bags (Herbs only)
+    if HERB_NAMES[nameLower] or subLower == "herb" or subLower == "herbalism" or string.find(subLower, "herb", 1, true) then
+        return "HERB_BAG"
+    end
+    if (iType == "Trade Goods" or iType == "Reagent" or iType == "") and (string.find(nameLower, "leaf", 1, true) or string.find(nameLower, "bloom", 1, true) or string.find(nameLower, "lotus", 1, true) or string.find(nameLower, "weed", 1, true) or string.find(nameLower, "kelp", 1, true) or string.find(nameLower, "grass", 1, true)) then
+        return "HERB_BAG"
+    end
+
+    -- 5. Mining Bags (Ore, Stone, Metal, Bars, Gems)
+    if subLower == "metal & stone" or subLower == "mining" or string.find(subLower, "stone", 1, true) or string.find(subLower, "metal", 1, true) then
+        return "MINING_BAG"
+    end
+    if (iType == "Trade Goods" or iType == "") and (string.find(nameLower, "ore", 1, true) or string.find(nameLower, "bar", 1, true) or string.find(nameLower, "stone", 1, true) or string.find(nameLower, "nugget", 1, true)) then
+        return "MINING_BAG"
+    end
+
+    -- 6. Enchanting Bags (Dust, Essence, Shard, Crystal, Rod)
+    if subLower == "enchanting" or string.find(subLower, "enchanting", 1, true) then
+        return "ENCHANTING_BAG"
+    end
+    if (iType == "Trade Goods" or iType == "") and (string.find(nameLower, "dust", 1, true) or string.find(nameLower, "essence", 1, true) or string.find(nameLower, "shard", 1, true) or string.find(nameLower, "nexus crystal", 1, true)) and nameLower ~= "soul shard" then
+        return "ENCHANTING_BAG"
     end
 
     return nil
@@ -145,12 +283,12 @@ end
 function Categories:ClassifyItem(bagID, slotID)
     local texture, itemCount, locked, quality = GetContainerItemInfo(bagID, slotID)
     if not texture then
-        return Categories.PRIORITY.EMPTY, "Empty Slot", 0, 0, ""
+        return Categories.PRIORITY.EMPTY, "Empty Slot", 0, 0, "", false
     end
 
     local itemLink = GetContainerItemLink(bagID, slotID)
     if not itemLink then
-        return Categories.PRIORITY.MISC, "Unknown", quality or 1, 0, ""
+        return Categories.PRIORITY.UTILITY, "Unknown", quality or 1, 0, "", false
     end
 
     -- Extract Item ID
@@ -161,50 +299,63 @@ function Categories:ClassifyItem(bagID, slotID)
     local itemName, _, itemQuality, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTex = GetItemInfo(itemLink)
     
     itemName = itemName or ("Item #" .. itemID)
+    if string.sub(itemName, 1, 6) == "Item #" then
+        scanTooltip:ClearLines()
+        scanTooltip:SetBagItem(bagID, slotID)
+        local line1 = _G["PUIBags_CategoryScanTooltipTextLeft1"]
+        local tipName = line1 and line1:GetText()
+        if tipName and tipName ~= "" then
+            itemName = tipName
+        end
+    end
     itemQuality = itemQuality or quality or 1
     itemMinLevel = itemMinLevel or 0
     itemType = itemType or ""
     itemSubType = itemSubType or ""
     itemEquipLoc = itemEquipLoc or ""
 
-    -- 1. Junk / Poor Quality (Grey)
-    if itemQuality == 0 then
-        return Categories.PRIORITY.JUNK, itemName, itemQuality, itemMinLevel, itemType
-    end
-
-    -- 2. Quest Items
-    if itemType == "Quest" or itemQuality == 4 and string.find(string.lower(itemName), "quest", 1, true) then
-        return Categories.PRIORITY.QUEST, itemName, itemQuality, itemMinLevel, itemType
-    end
-
-    -- Special Utility Item Check: Hearthstone & Primary Keys/Tools
     local nameLower = string.lower(itemName)
-    if nameLower == "hearthstone" or nameLower == "skeleton key" or string.find(nameLower, "key", 1, true) or string.find(nameLower, "pick", 1, true) or string.find(nameLower, "knife", 1, true) or string.find(nameLower, "flint", 1, true) then
-        return Categories.PRIORITY.UTILITY, itemName, itemQuality, itemMinLevel, itemType
+
+    -- 1. Junk / Poor Quality (Grey) - always sorted to the end
+    if itemQuality == 0 then
+        return Categories.PRIORITY.JUNK, itemName, itemQuality, itemMinLevel, itemType, false
     end
 
-    -- 3. Consumables
+    -- 2. Hearthstone (Highest priority, top-left of bags)
+    if itemID == 6948 or nameLower == "hearthstone" or string.find(nameLower, "hearthstone", 1, true) then
+        return Categories.PRIORITY.HEARTHSTONE, itemName, itemQuality, itemMinLevel, itemType, true
+    end
+
+    -- Scan tooltip flags for Soulbound and Quest
+    local isSoulbound, isQuestTooltip = ScanBagItemFlags(bagID, slotID)
+
+    -- 3. Quest Items
+    if itemType == "Quest" or isQuestTooltip or (itemQuality == 4 and string.find(nameLower, "quest", 1, true)) then
+        return Categories.PRIORITY.QUEST, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
+    end
+
+    -- 4. Equipment (Wearable Weapons, Armor, Shields, Accessories)
+    local isEquip = (itemType == "Armor" or itemType == "Weapon" or (itemEquipLoc and itemEquipLoc ~= ""))
+    if isEquip then
+        if isSoulbound then
+            return Categories.PRIORITY.BOUND_GEAR, itemName, itemQuality, itemMinLevel, itemType, true
+        else
+            return Categories.PRIORITY.BOE_GEAR, itemName, itemQuality, itemMinLevel, itemType, false
+        end
+    end
+
+    -- 5. Consumables
     if itemType == "Consumable" or itemSubType == "Food & Drink" or itemSubType == "Potion" or itemSubType == "Elixir" or itemSubType == "Flask" or itemSubType == "Bandage" or itemSubType == "Scroll" then
-        return Categories.PRIORITY.CONSUMABLE, itemName, itemQuality, itemMinLevel, itemType
+        return Categories.PRIORITY.CONSUMABLE, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
     end
 
-    -- 4. Recipes & Plans
-    if itemType == "Recipe" or itemSubType == "Book" or string.find(nameLower, "recipe:", 1, true) or string.find(nameLower, "pattern:", 1, true) or string.find(nameLower, "plans:", 1, true) or string.find(nameLower, "schematic:", 1, true) or string.find(nameLower, "formula:", 1, true) or string.find(nameLower, "manual:", 1, true) then
-        return Categories.PRIORITY.RECIPE, itemName, itemQuality, itemMinLevel, itemType
-    end
-
-    -- 5. Trade Goods & Crafting Reagents
+    -- 6. Trade Goods & Crafting Reagents (Mats)
     if itemType == "Trade Goods" or itemType == "Reagent" or itemSubType == "Cloth" or itemSubType == "Leather" or itemSubType == "Herb" or itemSubType == "Metal & Stone" or itemSubType == "Meat" or itemSubType == "Elemental" or itemSubType == "Parts" or itemSubType == "Enchanting" or itemSubType == "Jewelcrafting" then
-        return Categories.PRIORITY.TRADE_GOODS, itemName, itemQuality, itemMinLevel, itemType
+        return Categories.PRIORITY.TRADE_GOODS, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
     end
 
-    -- 6. Wearable Equipment (Weapons, Armor, Shields, Accessories)
-    if itemType == "Armor" or itemType == "Weapon" or (itemEquipLoc and itemEquipLoc ~= "") then
-        return Categories.PRIORITY.EQUIPMENT, itemName, itemQuality, itemMinLevel, itemType
-    end
-
-    -- 7. Miscellaneous
-    return Categories.PRIORITY.MISC, itemName, itemQuality, itemMinLevel, itemType
+    -- 7. White Things / Utility / Tools / Recipes / Miscellaneous Common Items
+    return Categories.PRIORITY.UTILITY, itemName, itemQuality, itemMinLevel, itemType, isSoulbound
 end
 
 -- =========================================================================
